@@ -551,6 +551,8 @@ protected:
     // Scan punctuators
     virtual TokenPtr scanPunctuators() {
         int singelPunc = peak;
+        if (singelPunc == '-')
+            return scanIntegerAndFloating();
         return make_shared<Token>(singelPunc);
     }
     virtual TokenPtr scanKeywordOrIdentifier(string& word) {
@@ -627,6 +629,12 @@ protected:
         bool gotoFloatingDirectly = true;
         // Store suffix for feature use
         string suffix;
+        // Is negative number
+        bool isNegativeNumber = false;
+
+        if (peak == '-') {
+            isNegativeNumber = true; readch();
+        }
 
         if (isdigit(peak)) {
             gotoFloatingDirectly = false;
@@ -701,7 +709,7 @@ protected:
                 else if (hasLongSuffix) bit = 32;
                     //else if ((hasUnsignedSuffix && intValue < INT16_MAX) || (!hasUnsignedSuffix && intValue < INT16_MAX / 2) ) bit = 16;
                 else bit = 32;
-                return make_shared<IntToken>(intValue, hasUnsignedSuffix, bit);
+                return make_shared<IntToken>(isNegativeNumber ? -intValue : intValue, hasUnsignedSuffix, bit);
             }
 
         }
@@ -774,10 +782,11 @@ protected:
             if (peak == '.') diagError("too many decimal points in number");
 
             retract();
-            return make_shared<FloatToken>(floating, bit);
+            return make_shared<FloatToken>(isNegativeNumber ? -floating : floating, bit);
         }
 
-        assert( false && "this is neither integer nor floating token" );
+        diagError("A negative operator without a number is not allowed.");
+        return nullptr;
     }
     // error recovery
     bool  detectAnError = false;
@@ -1139,12 +1148,13 @@ void DeclsSymbol::printAST(int hierarchy)  {
 void DeclSymbol::printAST(int hierarchy) {
     printHierarchy(hierarchy, "DeclSymbol");
     printHierarchy(hierarchy+1, "id: ");
-    cout << id->name;
+    cout << (id ? id->name : "<Unnamed>");
     factor->printAST(hierarchy+1);
 }
 
 void FactorSymbol::printAST(int hierarchy) {
     printHierarchy(hierarchy, "FactorSymbol");
+    cout << "  ";
     if (factorType == FactorType::INT)
         cout << integer->toInt();
     else if (factorType == FactorType::FLOAT)
@@ -1212,11 +1222,15 @@ DeclSymbolPtr ASTBuilder::decl() {
             next();
         return make_shared<DeclSymbol>(id, factorSym);
     }
+    else if (look->is(';') || look->is(',')) {
+            next();
+        return nullptr;
+    }
     else {
+        FactorSymbolPtr factorSym = factor();
         if (look->is(';') || look->is(','))
             next();
-        else REPORT_ERROR("identifier expected");
-        return nullptr;
+        return make_shared<DeclSymbol>(nullptr, factorSym);
     }
 }
 
@@ -1291,6 +1305,7 @@ DEFINE_SHARED_PTR(DataResult);
 DEFINE_SHARED_PTR(DataLoader);
 
 class DataResult {
+protected:
     FactorSymbolPtr factorSym = nullptr;
 public:
 #define DEFINE_OPERATORS(op, baseFunc) operator op() { return as##baseFunc<op>(); }
@@ -1354,7 +1369,7 @@ public:
     const char * what() const noexcept override { return msg; }
 };
 
-class DataLoader {
+class DataLoader : public DataResult {
     DeclsSymbolPtr AST;
 public:
     DataLoader() { }
@@ -1366,8 +1381,9 @@ public:
             Parser parser(ss);
             parser.parse();
             parser.parseDone();
-            //parser.getAST()->printAST(1);
             AST = parser.getAST();
+            if (AST->decls.size() > 0)
+                factorSym = AST->decls[0]->factor;
             return true;
         }
         catch (exception e) {
@@ -1377,6 +1393,8 @@ public:
         }
     }
 
+    void printAST() { if (AST) AST->printAST(1); }
+
     DataResult getData(const char* name) {
         DeclSymbolPtr declSym = findDeclSymbolByID(name);
         if (!declSym)
@@ -1385,17 +1403,36 @@ public:
         ds.factorSym = declSym->factor;
         return move(ds);
     }
+    DataResult getData(int index) {
+        DeclSymbolPtr declSym = findDeclSymbolByIndex(index);
+        if (!declSym)
+            throw NoSuchNameException("<Unnamed>");
+        DataResult ds;
+        ds.factorSym = declSym->factor;
+        return move(ds);
+    }
     DataResult operator[] (const char* name) {
         return move(getData(name));
     }
+    DataResult operator[] (int index) {
+        return move(getData(index));
+    }
+
 private:
     DeclSymbolPtr findDeclSymbolByID(const char* name) {
         if (!AST) return nullptr;
         for (DeclSymbolPtr decl : AST->decls) {
+            if (!decl->id)
+                continue;
             if (decl->id->name == name)
                 return decl;
         }
         return nullptr;
+    }
+    DeclSymbolPtr findDeclSymbolByIndex(int idx) {
+        if (!AST) return nullptr;
+        if (idx >= AST->decls.size()) return nullptr;
+        return AST->decls[idx];
     }
 };
 
