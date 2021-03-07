@@ -1349,6 +1349,33 @@ public:
         return vec;
     }
 
+    template <class T>
+    vector<vector<T>> as2DArray() {
+        vector<vector<T>> vec;
+        if (!factorSym->array) return vec;
+        for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
+            DataResult dr; dr.factorSym = fact;
+            if (!fact->array) continue; // Nested array only
+            vec.push_back(dr.asArray<T>());
+        }
+        return vec;
+    }
+
+    template <class T>
+    vector<vector<vector<T>>> as3DArray() {
+        vector<vector<vector<T>>> vec;
+        if (!factorSym->array) return vec;
+        for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
+            DataResult dr; dr.factorSym = fact;
+            if (!fact->array) continue; // Nested array only
+            vec.push_back(dr.as2DArray<T>());
+        }
+        return vec;
+    }
+
+    template <class T>
+    operator vector<T>() { return asArray<T>(); }
+
     DataResult operator[](int idx) {
         if (!factorSym->array)
             throw runtime_error("Object is not subscriptable");

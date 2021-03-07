@@ -3,3 +3,6 @@ main.cpp
 .vs
 .idea
 .DS_Store
+build-debug/
+build-*
+.cmake_conf.json
