@@ -1,0 +1,5 @@
+cmake*
+main.cpp
+.vs
+.idea
+.DS_Store
