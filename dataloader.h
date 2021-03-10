@@ -853,7 +853,7 @@ protected:
     // thrown exceptions (common used by all instance)
     deque<ParseError> errors;
     // error count (Note: errorCount != length of error as warning items is also in errors)
-    size_t errorCount;
+    size_t errorCount = 0;
 
     struct CommonParserState {
         // if compiler meet error
@@ -1376,6 +1376,12 @@ public:
     template <class T>
     operator vector<T>() { return asArray<T>(); }
 
+    template <class T>
+    operator vector<vector<T>>() { return as2DArray<T>(); }
+
+    template <class T>
+    operator vector<vector<vector<T>>>() { return as3DArray<T>(); }
+
     DataResult operator[](int idx) {
         if (!factorSym->array)
             throw runtime_error("Object is not subscriptable");
@@ -1402,10 +1408,10 @@ public:
     DataLoader() { }
     bool load(string str) {
         AST = nullptr;
+        stringstream ss;
+        ss << str;
+        Parser parser(ss);
         try {
-            stringstream ss;
-            ss << str;
-            Parser parser(ss);
             parser.parse();
             parser.parseDone();
             AST = parser.getAST();
@@ -1414,8 +1420,8 @@ public:
             return true;
         }
         catch (exception e) {
-            cout << "Parse Error:";
-            cout << e.what() << endl;
+            cout << "Parse teminated due to errors.\n";
+            parser.parseDone();
             return false;
         }
     }
@@ -1460,6 +1466,42 @@ private:
         if (!AST) return nullptr;
         if (idx >= AST->decls.size()) return nullptr;
         return AST->decls[idx];
+    }
+};
+
+class SolutionTester {
+    vector<DataLoader> loaders;
+    function<bool (DataLoader& loader)> checkFn;
+public:
+    void addTestCase(string case1) {
+        DataLoader loader;
+        try {
+            loader.load(case1);
+            loaders.push_back(move(loader));
+        }
+        catch (exception e) {
+            cout << "Error while loading test case: " << e.what() << endl;
+        }
+    }
+    void setCheckFn(function<bool (DataLoader& loader)> _checkFn) {
+        checkFn = _checkFn;
+    }
+    void test() {
+        int index=0;
+        for (DataLoader& loader : loaders) {
+            cout << "Checking case #" << index << endl;
+            cout << "----------------------------------------------------\n";
+            if (!checkFn(loader)) {
+                cout << "----------------------------------------------------\n";
+                cerr << "  Error while checking case #" << index << endl;
+            }
+            else {
+                cout << "----------------------------------------------------\n";
+                cout << "  Test case # " << index << ": Passed" << endl;
+            }
+            index++;
+            cout << "====================================================\n";
+        }
     }
 };
 
