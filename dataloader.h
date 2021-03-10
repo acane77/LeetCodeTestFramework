@@ -556,6 +556,8 @@ protected:
         return make_shared<Token>(singelPunc);
     }
     virtual TokenPtr scanKeywordOrIdentifier(string& word) {
+        if (word == "true")  return make_shared<IntToken>(1);
+        if (word == "false") return make_shared<IntToken>(0);
         return make_shared<WordToken>(word);
     }
     virtual TokenPtr scanIdentifierAndStringCharacterLiteral() {
