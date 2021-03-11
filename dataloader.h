@@ -1302,6 +1302,138 @@ public:
     DeclsSymbolPtr getAST() { return M_ASTRoot; }
 };
 
+// =============== Link List Helper ===============
+template <class ValTy>
+class LinkListConstructor {
+public:
+    virtual ValTy  getValue() { assert(! "getValue() not implemented"); };
+    virtual void   setValue(ValTy value) = 0;
+    virtual LinkListConstructor<ValTy>* getNextItem() = 0;
+    virtual LinkListConstructor<ValTy>* getPreviousItem() { assert(! "getPreviousItem() not implemented"); }
+    virtual void setNextItem(LinkListConstructor<ValTy>* _next) = 0;
+    virtual void setPreviousItem(LinkListConstructor<ValTy>* _prev) { assert(! "setPreviousItem() not implemented"); }
+
+    template <class ContainerTy>
+    static LinkListConstructor* constructLinkList(vector<ValTy>& init) {
+        LinkListConstructor* head = new ContainerTy();
+        LinkListConstructor* curr = head;
+        for (ValTy& e : init) {
+            LinkListConstructor* _new = new ContainerTy();
+            _new->setNextItem(nullptr);
+            _new->setValue(e);
+            curr->setNextItem(_new);
+            curr = _new;
+        }
+        return head->getNextItem();
+    }
+
+    template <class ContainerTy>
+    static LinkListConstructor* constructDualLinkList(vector<ValTy>& init) {
+        LinkListConstructor* head = new ContainerTy();
+        LinkListConstructor* curr = head;
+        for (ValTy& e : init) {
+            LinkListConstructor* _new = new ContainerTy();
+            _new->setNextItem(nullptr);
+            _new->setPreviousItem(curr);
+            _new->setValue(e);
+            curr->setNextItem(_new);
+            curr = _new;
+        }
+        auto _hptr = head;
+        head = head->getNextItem();
+        head->setPreviousItem(nullptr);
+        delete _hptr;
+        return head;
+    }
+
+    template <class ContainerTy>
+    static LinkListConstructor* constructLoopLinkList(vector<ValTy>& init) {
+        LinkListConstructor* head = new ContainerTy();
+        LinkListConstructor* curr = head;
+        for (ValTy& e : init) {
+            LinkListConstructor* _new = new ContainerTy();
+            _new->setNextItem(nullptr);
+            _new->setValue(e);
+            curr->setNextItem(_new);
+            curr = _new;
+        }
+        curr->setNextItem(head->getNextItem());
+        return head->getNextItem();
+    }
+
+    template <class ContainerTy>
+    static LinkListConstructor* constructLoopDualLinkList(vector<ValTy>& init) {
+        LinkListConstructor* head = new ContainerTy();
+        LinkListConstructor* curr = head;
+        for (ValTy& e : init) {
+            LinkListConstructor* _new = new ContainerTy();
+            _new->setNextItem(nullptr);
+            _new->setPreviousItem(curr);
+            _new->setValue(e);
+            curr->setNextItem(_new);
+            curr = _new;
+        }
+        auto _hptr = head;
+        head = head->getNextItem();
+        head->setPreviousItem(curr);
+        curr->setNextItem(head);
+        //delete _hptr;
+        return head;
+    }
+
+    static void printList(LinkListConstructor* head) {
+        bool headAllow = true;
+        cout << "[";
+        for (LinkListConstructor* curr = head;
+             (curr != head || headAllow) && curr; curr = curr->getNextItem()) {
+            headAllow = false;
+            cout << curr->getValue() << ", ";
+        }
+        cout << "] ";
+    }
+    void printList() {
+        printList(this);
+    }
+
+    static void printReversedList(LinkListConstructor* head) {
+        head = head->getPreviousItem();
+        bool headAllow = true;
+        for (LinkListConstructor* curr = head;
+             (curr != head || headAllow) && curr; curr = curr->getPreviousItem()) {
+            headAllow = false;
+            cout << curr->getValue() << ", ";
+        }
+        cout << endl;
+    }
+    void printReversedList() {
+        printReversedList(this);
+    }
+};
+
+#define LL_DEFINE_NEXT_PTR(nextPropName, typeName) \
+    LinkListConstructor<int> * getNextItem() override {\
+        return nextPropName;\
+    }                                          \
+    void setNextItem(LinkListConstructor<int> *_next) override {\
+        nextPropName = (typeName*)_next;\
+    }
+
+#define LL_DEFINE_PREV_PTR(prevPropName, typeName) \
+    LinkListConstructor<int> * getPreviousItem() override {\
+        return prevPropName;\
+    }                                          \
+    void setPreviousItem(LinkListConstructor<int> *_prev) override {\
+        prevPropName = (typeName*)_prev;\
+    }
+
+#define LL_DEFINE_VALUE(valuePropName, valueType) \
+    valueType getValue() override {\
+        return valuePropName;\
+    }\
+    void setValue(valueType value) override {\
+        valuePropName = value;\
+    }
+
 // ================== Data Loader =================
 DEFINE_SHARED_PTR(DataResult);
 DEFINE_SHARED_PTR(DataLoader);
@@ -1383,6 +1515,34 @@ public:
 
     template <class T>
     operator vector<vector<vector<T>>>() { return as3DArray<T>(); }
+
+    template <class ValTy, class ContainerTy>
+    ContainerTy* asLinkedList() {
+        vector<ValTy> init = asArray<ValTy>();
+        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructLinkList<ContainerTy>(init);
+        return (ContainerTy*)llist;
+    }
+
+    template <class ValTy, class ContainerTy>
+    ContainerTy* asDualLinkedList() {
+        vector<ValTy> init = asArray<ValTy>();
+        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructDualLinkList<ContainerTy>(init);
+        return (ContainerTy*)llist;
+    }
+
+    template <class ValTy, class ContainerTy>
+    ContainerTy* asLoopLinkedList() {
+        vector<ValTy> init = asArray<ValTy>();
+        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructLoopLinkList<ContainerTy>(init);
+        return (ContainerTy*)llist;
+    }
+
+    template <class ValTy, class ContainerTy>
+    ContainerTy* asLoopDualLinkedList() {
+        vector<ValTy> init = asArray<ValTy>();
+        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructLoopDualLinkList<ContainerTy>(init);
+        return (ContainerTy*)llist;
+    }
 
     DataResult operator[](int idx) {
         if (!factorSym->array)
