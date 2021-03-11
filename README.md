@@ -58,6 +58,43 @@ loader.load(R"sample(
 int k = loader["k"]; // k=3
 vector<int> A = loader["A"].asArray<int>(); // A = [1,2,3,4,5]
 ```
+
+**Load a Linked List**
+
+```c++
+// List node is defined by LeetCode problem.
+//   1. Just inherit from LinkListConstructor<T>
+struct ListNode : public LinkListConstructor<int> {
+    int val;
+    ListNode *next, *prev;
+    ListNode() : val(0), next(nullptr) {}
+    ListNode(int x) : val(x), next(nullptr) {}
+    ListNode(int x, ListNode *next) : val(x), next(next) {}
+
+    // 2. Define virtual methods of interface, to make constructor work
+    LL_DEFINE_NEXT_PTR(next, ListNode)  // Define how to get next element
+    LL_DEFINE_PREV_PTR(prev, ListNode)  // Define how to get previous element
+    LL_DEFINE_VALUE(val, int)           // Define how to get value
+};
+
+int main() {
+    DataLoader loader;
+    loader.load("[1,2,3,4,5]");
+    // 3. Use asLinkedList series methods to construct Link List
+    ListNode* L1 = loader.asLinkedList<int, ListNode>();
+    ListNode* L2 = loader.asLoopLinkedList<int, ListNode>();
+    ListNode* L3 = loader.asDualLinkedList<int, ListNode>();
+    ListNode* L4 = loader.asDualLoopLinkedList<int, ListNode>();
+    L1->printList();
+    L4->printReversedList();
+}
+```
+
+The output is
+```
+[1, 2, 3, 4, 5, ]
+[5, 4, 3, 2, 1, ]
+```
 ### 2. Solution Tester
 
 When testing multiply test cases, it's usually not convince to copy 
