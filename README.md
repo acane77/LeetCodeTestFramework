@@ -1,4 +1,4 @@
-# LeetCode Input Sample Loader
+# LeetCode Batch Tester 
 
 Load variables from leetcode sample data. And test them in batch.
 
