@@ -35,6 +35,8 @@
 #include <deque>
 #include <iostream>
 #include <typeinfo>
+#include <vector>
+#include <sstream>
 
 using namespace std;
 
