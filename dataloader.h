@@ -1453,10 +1453,10 @@ public:
     INT_OPERATORS(int32_t)    INT_OPERATORS(uint32_t)
     INT_OPERATORS(int64_t)    INT_OPERATORS(uint64_t)
 
-    template <class T=double_t>
+    template <class T=double>
     T asFloat() { return (T)(factorSym->integer ? factorSym->integer->toFloat() : (factorSym->floating ? factorSym->floating->toFloat() : 0)); }
-    DEFINE_OPERATORS(float_t, Float)
-    DEFINE_OPERATORS(double_t, Float)
+    DEFINE_OPERATORS(float, Float)
+    DEFINE_OPERATORS(double, Float)
 
     template <class T>
     vector<T> asArray() {
