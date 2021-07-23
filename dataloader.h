@@ -1440,6 +1440,19 @@ public:
 DEFINE_SHARED_PTR(DataResult);
 DEFINE_SHARED_PTR(DataLoader);
 
+template <class T, int N>
+struct vector_helper {
+    using value_type = vector<typename vector_helper<T, N-1>::value_type>;
+};
+
+template <class T>
+struct vector_helper<T, 1> {
+    using value_type = vector<T>;
+};
+
+template <class T, int N>
+using vector_helper_t = typename vector_helper<T, N>::value_type;
+
 class DataResult {
 protected:
     FactorSymbolPtr factorSym = nullptr;
@@ -1457,6 +1470,24 @@ public:
     T asFloat() { return (T)(factorSym->integer ? factorSym->integer->toFloat() : (factorSym->floating ? factorSym->floating->toFloat() : 0)); }
     DEFINE_OPERATORS(float, Float)
     DEFINE_OPERATORS(double, Float)
+
+    template <class T, int N>
+    typename std::enable_if_t<N==1, typename vector_helper<T, 1>::value_type> asNDArray() {
+        typename vector_helper<T, 1>::value_type vec = asArray<T>();
+        return vec;
+    }
+
+    template <class T, int N>
+    typename std::enable_if_t<N!=1, typename vector_helper<T, N>::value_type> asNDArray() {
+        typename vector_helper<T, N>::value_type vec;
+        if (!factorSym->array) return vec;
+        for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
+            DataResult dr; dr.factorSym = fact;
+            if (!fact->array) continue; // Nested array only
+            vec.push_back(dr.asNDArray<T, N-1>());
+        }
+        return vec;
+    }
 
     template <class T>
     vector<T> asArray() {
@@ -1486,37 +1517,19 @@ public:
     }
 
     template <class T>
-    vector<vector<T>> as2DArray() {
-        vector<vector<T>> vec;
-        if (!factorSym->array) return vec;
-        for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
-            DataResult dr; dr.factorSym = fact;
-            if (!fact->array) continue; // Nested array only
-            vec.push_back(dr.asArray<T>());
-        }
-        return vec;
-    }
+    typename vector_helper<T, 2>::value_type as2DArray() { return asNDArray<T, 2>(); }
 
     template <class T>
-    vector<vector<vector<T>>> as3DArray() {
-        vector<vector<vector<T>>> vec;
-        if (!factorSym->array) return vec;
-        for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
-            DataResult dr; dr.factorSym = fact;
-            if (!fact->array) continue; // Nested array only
-            vec.push_back(dr.as2DArray<T>());
-        }
-        return vec;
-    }
+    typename vector_helper<T, 3>::value_type as3DArray() { return asNDArray<T, 3>(); }
 
     template <class T>
     operator vector<T>() { return asArray<T>(); }
 
     template <class T>
-    operator vector<vector<T>>() { return as2DArray<T>(); }
+    operator vector<vector<T>>() { return asNDArray<T, 2>(); }
 
     template <class T>
-    operator vector<vector<vector<T>>>() { return as3DArray<T>(); }
+    operator vector<vector<vector<T>>>() { return asNDArray<T, 3>(); }
 
     template <class ValTy, class ContainerTy>
     ContainerTy* asLinkedList() {
