@@ -182,3 +182,26 @@ $	0	0	0	0
 ====================================================
   Error while checking case #1
 ```
+
+### 3. Using an Enhanced Solution Tester
+
+Instead of setting a checking function manually, use of `EnhancedSolutionTester` is much easier.
+
+For example:
+
+```c++
+int test(vector<vector<int>> a, vector<int> b) {
+    return a.size() + b.size();
+}
+
+int main() {
+    EnhancedSoultionTester<int> ST;
+    // add test case here
+    ST.addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,2,3,4]", 6);
+    ST.addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,2]", 4);
+    
+    // set check function
+    ST.test(test, 0, "b");  // where 0 and "b" are the indexes of 
+                            // the test cases in string (a.k.a, the DataLoader)
+}
+```

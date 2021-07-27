@@ -37,6 +37,8 @@
 #include <typeinfo>
 #include <vector>
 #include <sstream>
+#include <functional>
+#include <cassert>
 
 using namespace std;
 
@@ -153,13 +155,13 @@ public:
         return line[column++];
     }
     int lastChar() {
-        while (column-1 < 0) {
+        while (column - 1 < 0) {
             if (!lastLine()) return -1;
             column = line.length();
         }
         return line[--column];
     }
-    const string &getFilename() const { return filename; }
+    const string& getFilename() const { return filename; }
 };
 
 // ===============    Source Manager    ===================
@@ -197,18 +199,18 @@ public:
         FileReadPtr fr = make_shared<FileRead>(stream);
         currFile = fr;
     }
-    const string &getCurrentFilename() const { return currFile->getFilename(); }
+    const string& getCurrentFilename() const { return currFile->getFilename(); }
 };
 
 // =============== Token Tag Definitions =================
 namespace Tag {
-    enum: int32_t {
-        EndOfFile       = -1,
-        ID              = 1 << 8,
-        Integer         = 1 << 9,
-        Floating        = 1 << 10,
-        Character       = 1 << 12,
-        StringLiteral   = 1 << 13,
+    enum : int32_t {
+        EndOfFile = -1,
+        ID = 1 << 8,
+        Integer = 1 << 9,
+        Floating = 1 << 10,
+        Character = 1 << 12,
+        StringLiteral = 1 << 13,
         Number = Integer | Floating,
         BaseFactor = Integer | Floating | Character | StringLiteral,
         Identifier = ID,
@@ -229,14 +231,14 @@ public:
     IOException(string&& _msg) { msg = _msg; }
     IOException() { msg = "No such file or directory."; }
 
-    const char * what() const noexcept override {
+    const char* what() const noexcept override {
         return msg.c_str();
     }
 };
 
 class InvalidToken : public exception {
 public:
-    const char * what() const noexcept override {
+    const char* what() const noexcept override {
         return "invalid token found.";
     }
 };
@@ -247,7 +249,7 @@ public:
     SyntaxError(string& _msg) { msg = std::move(_msg); }
     SyntaxError(string&& _msg) { msg = _msg; }
 
-    const char * what() const noexcept override {
+    const char* what() const noexcept override {
         return msg.c_str();
     }
 };
@@ -265,29 +267,29 @@ class ParseError : public exception {
     bool warning;
 
 public:
-    const string &getInfo() const { return info; }
-    void setInfo(const string &info) {  ParseError::info = info; }
-    const string &getSuggest() const { return suggest; }
-    void setSuggest(const string &suggest) { ParseError::suggest = suggest; }
+    const string& getInfo() const { return info; }
+    void setInfo(const string& info) { ParseError::info = info; }
+    const string& getSuggest() const { return suggest; }
+    void setSuggest(const string& suggest) { ParseError::suggest = suggest; }
 
 public:
     ParseError(string&& _msg, TokenPtr _tok, bool _warning) { msg = std::move(_msg); tok = _tok; warning = _warning; }
     ParseError(string& _msg, TokenPtr _tok, bool _warning) { msg = std::move(_msg); tok = _tok; warning = _warning; }
 
-    const char * what() const noexcept override { return msg.c_str(); }
+    const char* what() const noexcept override { return msg.c_str(); }
     const TokenPtr getToken() { return tok; }
     bool isWarning() { return warning; }
 };
 
 class PasreCannotRecoveryException : public exception {
 public:
-    const char * what() const noexcept override { return "compilation failed due to errors."; }
+    const char* what() const noexcept override { return "compilation failed due to errors."; }
 };
 
 class Encoding {
 private:
     uint32_t encoding;
-    const char * encodingString;
+    const char* encodingString;
 
 public:
     enum Prefix { U = 0, u, u8, L, ASCII };
@@ -295,7 +297,7 @@ public:
     Encoding& operator=(Encoding& enc) { encoding = enc.encoding; encodingString = enc.encodingString; return *this; }
     Encoding& operator=(uint32_t _encoding) { setEncoding(_encoding); return *this; }
     uint32_t getEncoding() { return encoding; }
-    const char * getEncodingString() { return encodingString; }
+    const char* getEncodingString() { return encodingString; }
     void setEncoding(uint32_t encoding) {
         Encoding::encoding = encoding;
         if (encoding == U) encodingString = "U";
@@ -322,7 +324,7 @@ public:
     int column;
     int row;
     int chrlen;
-    const char * filenam;
+    const char* filenam;
 
     // characteristic information
     int32_t tag;
@@ -337,7 +339,8 @@ public:
             column = flread->getColumn(); row = flread->getRow() - 1; //row returned by lexer is next row nuber so minus 1
             filenam = flread->getCurrentFilename().c_str(); chrlen = column - startColumn;
             startCol = startColumn;
-        } else filenam = "";
+        }
+        else filenam = "";
     }
 
     virtual string toString() {
@@ -364,10 +367,10 @@ public:
     bool isNot(int32_t _tag) { return !is(_tag); }
 
     // type conversion (used by AST eval)
-    virtual FloatingLiteralType toFloat() { assert( false && "this token cannot convert to floating point" ); }
-    virtual IntegerLiteralType toInt() { assert( false && "this token cannot convert to integer" ); }
-    virtual void setValue(FloatingLiteralType f) { assert( false && "this token cannot set value of floating point" ); }
-    virtual void setValue(IntegerLiteralType i) { assert( false && "this token cannotset value of integer" ); }
+    virtual FloatingLiteralType toFloat() { assert(false && "this token cannot convert to floating point"); return 0.0; }
+    virtual IntegerLiteralType toInt() { assert(false && "this token cannot convert to integer"); return 0; }
+    virtual void setValue(FloatingLiteralType f) { assert(false && "this token cannot set value of floating point"); }
+    virtual void setValue(IntegerLiteralType i) { assert(false && "this token cannotset value of integer"); }
 
     // other
     void copyAdditionalInfo(const TokenPtr& tok) {
@@ -432,7 +435,7 @@ class CharToken : public Token {
     void _setIntValue() {
         if (!charseq.length()) throw SyntaxError("empty character constant");
         value = 0;
-        for (int i=charseq.length() - 1; i>=0; i--)
+        for (int i = charseq.length() - 1; i >= 0; i--)
             value = (value << 8) | charseq[i];
     }
 public:
@@ -591,7 +594,7 @@ protected:
         else if (peak == '\"' || peak == '\'')
             return scanStringCharacterLiteral(encoding);
 
-        assert( false && "This is not a (Identifiers and Keywords, string-literal, character)" );
+        assert(false && "This is not a (Identifiers and Keywords, string-literal, character)");
     }
     virtual TokenPtr scanStringCharacterLiteral(uint32_t encoding) {
         if (peak == '\'' || peak == '"') {
@@ -606,11 +609,11 @@ protected:
             }
 
             return quotationMark == '\"' ?
-                   static_pointer_cast<Token>(make_shared<StringToken>(chrseq, encoding)) :
-                   static_pointer_cast<Token>(make_shared<CharToken>(chrseq, encoding));
+                static_pointer_cast<Token>(make_shared<StringToken>(chrseq, encoding)) :
+                static_pointer_cast<Token>(make_shared<CharToken>(chrseq, encoding));
         }
 
-        assert( false && "this is not a string-literal nor character" );
+        assert(false && "this is not a string-literal nor character");
     }
     virtual TokenPtr scanIntegerAndFloating() {
         // Integer and floating constant
@@ -653,7 +656,7 @@ protected:
                 if (peak == 'x' || peak == 'X') {
                     // hexadecimal-constant
                     ary = 16;
-                    for (readch(); isdigit(peak) || (peak >= 'A' && peak <= 'F') || (peak >= 'a' && peak <= 'f'); readch() )
+                    for (readch(); isdigit(peak) || (peak >= 'A' && peak <= 'F') || (peak >= 'a' && peak <= 'f'); readch())
                         intValue = intValue * ary + (isdigit(peak) ? peak - '0' : 10 + (peak >= 'A' && peak <= 'F' ? peak - 'A' : peak - 'a'));
                 }
                 else {
@@ -665,27 +668,27 @@ protected:
             }
 
             // if next char is dot it is a floting-constant
-            if (peak == '.')  ; // do nothing
+            if (peak == '.'); // do nothing
                 // floating (hexadecimal)
             else if (peak == 'e') {
                 floating = intValue;
-                add_exponment:
+            add_exponment:
                 int exponment = 0;  //faction * 1/16
                 bool positive = true;
                 if (readch(); peak == '-' || peak == '+') { positive = peak == '+'; readch(); }
                 if (!isdigit(peak)) diagError("exponent has no digits");
                 for (; isdigit(peak); readch())
                     exponment = exponment * 10 + peak - '0';
-                for (int i=0; i<exponment; i++) {
+                for (int i = 0; i < exponment; i++) {
                     if (positive) floating *= ary;
                     else floating /= ary;
                 }
                 // Add floating-constant suffix below
                 goto add_floating_suffix;
             }
-                // integer-suffix
-            else  {
-                for (; isalnum(peak) ; readch()) {
+            // integer-suffix
+            else {
+                for (; isalnum(peak); readch()) {
                     suffix += (char)peak;
                     if (suffixInvalid) continue;
                     if ((peak == 'u' || peak == 'U') && !hasUnsignedSuffix)
@@ -707,13 +710,13 @@ protected:
                     goto convert_to_floating_here;
                 }
                 retract();
-                it_must_be_an_integer:
+            it_must_be_an_integer:
                 short bit;
                 if (hasLongLongSuffix) bit = 64;
                 else if (hasLongSuffix) bit = 32;
-                    //else if ((hasUnsignedSuffix && intValue < INT16_MAX) || (!hasUnsignedSuffix && intValue < INT16_MAX / 2) ) bit = 16;
+                //else if ((hasUnsignedSuffix && intValue < INT16_MAX) || (!hasUnsignedSuffix && intValue < INT16_MAX / 2) ) bit = 16;
                 else bit = 32;
-                return make_shared<IntToken>(isNegativeNumber ? -intValue : intValue, hasUnsignedSuffix, bit);
+                return make_shared<IntToken>(isNegativeNumber ? -(int64_t)intValue : intValue, hasUnsignedSuffix, bit);
             }
 
         }
@@ -725,11 +728,11 @@ protected:
                 // why retract here? if here is .. it reads two more characters than
                 // nessesarry, so retract is required.
                 // if !gotoFloatingDirectly source like '123...', integer + ...
-                if (!gotoFloatingDirectly)  { retract(); retract(); goto it_must_be_an_integer; }
-                    // it may be ..., .. is also possible
-                    // retract is also required but only once.
-                    // we can manually set peak = '.' because we know what peak should be
-                else  { retract(); peak = '.'; return nullptr; };
+                if (!gotoFloatingDirectly) { retract(); retract(); goto it_must_be_an_integer; }
+                // it may be ..., .. is also possible
+                // retract is also required but only once.
+                // we can manually set peak = '.' because we know what peak should be
+                else { retract(); peak = '.'; return nullptr; };
             }
             if (gotoFloatingDirectly && !(isdigit(peak))) {
                 // floating like .12 = 0.12, it must be a decimal number.
@@ -747,13 +750,13 @@ protected:
                     factor = factor / 10;
                 }
                 if (peak == '.') diagError("too many decimal points in number");
-                if (peak == 'e' || peak == 'E')  { floating = intValue + fraction;  goto add_exponment; }
+                if (peak == 'e' || peak == 'E') { floating = intValue + fraction;  goto add_exponment; }
                 decimalPart = fraction;
             }
             else if (ary == 16) {
                 int fraction = 0, exponment = 0;  //faction * 1/16
                 bool positive = true;
-                for (; isdigit(peak) || (peak >= 'A' && peak <= 'F') || (peak >= 'a' && peak <= 'f'); readch() )
+                for (; isdigit(peak) || (peak >= 'A' && peak <= 'F') || (peak >= 'a' && peak <= 'f'); readch())
                     fraction = fraction * 16 + (isdigit(peak) ? peak - '0' : 10 + (peak >= 'A' && peak <= 'F' ? peak - 'A' : peak - 'a'));
                 if (peak == '.') diagError("too many decimal points in number");
                 if (peak != 'p' && peak != 'P') diagError("hexadecimal floating constants require an exponent");
@@ -764,9 +767,9 @@ protected:
                 else          decimalPart = (FloatingLiteralType)fraction / 16 / (1 << exponment);
             }
             floating = ((FloatingLiteralType)intValue) + decimalPart;
-            add_floating_suffix:
+        add_floating_suffix:
             // floting-constant suffix
-            for (; isalnum(peak) ; readch()) {
+            for (; isalnum(peak); readch()) {
                 suffix += peak;
                 if (suffixInvalid) continue;
                 if ((peak == 'f' || peak == 'F') && !(hasFloatingSuffix || hasLongSuffix))
@@ -775,13 +778,13 @@ protected:
                     hasLongSuffix = true;
                 else suffixInvalid = true;
             }
-            convert_to_floating_here:
+        convert_to_floating_here:
             if (suffixInvalid) diagError("Invalid floating constant suffix.");
 
             short bit;
             if (hasFloatingSuffix) bit = 32;
             else if (hasLongSuffix) bit = 64;
-            else bit = (*((uint64_t *)(&floating)) >> 32) ? 32 : 64;
+            else bit = (*((uint64_t*)(&floating)) >> 32) ? 32 : 64;
 
             if (peak == '.') diagError("too many decimal points in number");
 
@@ -840,7 +843,7 @@ public:
 
     // returns invalid token, for error reporting, not for parsing
     TokenPtr getLexedInvalidToken() {
-        assert( detectAnError && "invalid call of Lexer::getLexedInvalidToken()" );
+        assert(detectAnError && "invalid call of Lexer::getLexedInvalidToken()");
         detectAnError = false;
         return make_shared<Token>(-1);
     }
@@ -910,11 +913,11 @@ public:
     virtual bool skipUntil(const deque<int32_t>& toks, uint32_t flag);
 
     // add error statement prepare for output
-    inline void diagError( string&& errmsg, TokenPtr ptr ) { errors.push_back(ParseError(errmsg, ptr, false)); errorCount++; }
+    inline void diagError(string&& errmsg, TokenPtr ptr) { errors.push_back(ParseError(errmsg, ptr, false)); errorCount++; }
 
     // add warning statement prepare for output
     // warning information can be disabled by flag
-    inline void diagWarning( string&& errmsg, TokenPtr ptr ) { errors.push_back(ParseError(errmsg, ptr, true)); }
+    inline void diagWarning(string&& errmsg, TokenPtr ptr) { errors.push_back(ParseError(errmsg, ptr, true)); }
 
     ////// parser state //////
     // called when parse done
@@ -927,7 +930,7 @@ public:
     virtual void parse() = 0;
 };
 
-void IParser::match(uint32_t term, string &&errmsg, TokenPtr &ptr) {
+void IParser::match(uint32_t term, string&& errmsg, TokenPtr& ptr) {
     if (look->isNot(term)) {
         diagError(std::move(errmsg), ptr);
         if (look->is(-1))  parseDone();
@@ -939,7 +942,7 @@ void IParser::match(uint32_t term, string &&errmsg, TokenPtr &ptr) {
 }
 
 TokenPtr IParser::next() {
-    reget_token:
+reget_token:
     if (m_tsptr_r == m_tsptr_w) {
         try {
             look = M_lex->scan();
@@ -961,12 +964,12 @@ TokenPtr IParser::next() {
         //cout << " -- GET TOKEN FROM CACHE: " << look->toString() << endl;
         return look;
     }
-    else assert( false && "stack overflow." );
+    else assert(false && "stack overflow.");
 }
 
 TokenPtr IParser::retract() {
     if (m_tsptr_w - m_tsptr_r > MaxRetractSize || m_tsptr_r <= 0)
-        assert( false && "Invaild retract operation." );
+        assert(false && "Invaild retract operation.");
     look = tokens[(--m_tsptr_r) % MaxRetractSize];
     return look;
 }
@@ -980,18 +983,18 @@ void IParser::reportError(std::ostream& os) {
             continue;
         }
         string s = M_lex->getSourceManager()->getLine(tok->row);
-        for (int i=0 ; i < s.length() ; i++) {
+        for (int i = 0; i < s.length(); i++) {
             if (s[i] == '\t') os << "    ";
             else if (s[i] != '\n') os << s[i];
         }
         os << endl;
         // output blank before token
-        for (int i=0; i<tok->startCol - 1; i++) {
-            if (s[i] == '\t') os <<"    ";
+        for (int i = 0; i < tok->startCol - 1; i++) {
+            if (s[i] == '\t') os << "    ";
             else os << ' ';
         }
         os << "^";
-        for (int i=tok->startCol ; i<tok->column; i++) {
+        for (int i = tok->startCol; i < tok->column; i++) {
             if (s[i] == '\t') os << "~~~~";
             else os << '~';
         }
@@ -1002,13 +1005,13 @@ void IParser::reportError(std::ostream& os) {
 
 void IParser::parseDone() {
     reportError(cout);
-    if ( errorCount != 0 )  throw PasreCannotRecoveryException();
+    if (errorCount != 0)  throw PasreCannotRecoveryException();
 }
 
 bool IParser::skipUntil(const deque<int32_t>& toks, uint32_t flag) {
     // First we find token we want
-    for ( ; ; next() ) {
-        for (int32_t expect : toks ) {
+    for (; ; next()) {
+        for (int32_t expect : toks) {
             if (look->is(expect)) {
                 if (hasRecoveryFlag(flag, RecoveryFlag::KeepSpecifiedToken));// do nothing
                 else next();
@@ -1016,15 +1019,15 @@ bool IParser::skipUntil(const deque<int32_t>& toks, uint32_t flag) {
             }
         }
 
-        if ( hasRecoveryFlag(flag, RecoveryFlag::SkipUntilSemi) && look->is(';') )
+        if (hasRecoveryFlag(flag, RecoveryFlag::SkipUntilSemi) && look->is(';'))
             return false;
 
         // meet EOF and is required
-        if ( look->is(-1) && toks.size() == 1 && toks[0] == -1)
+        if (look->is(-1) && toks.size() == 1 && toks[0] == -1)
             return true;
 
         // token runs out
-        if ( look->is(-1) )
+        if (look->is(-1))
             return false;
 
         // TODO: add_special_skip_rules
@@ -1032,13 +1035,13 @@ bool IParser::skipUntil(const deque<int32_t>& toks, uint32_t flag) {
 }
 
 void IParser::cacheToken(TokenPtr tok) {
-    assert( m_tsptr_r == m_tsptr_w && "read pointer is not at top of stack" );
+    assert(m_tsptr_r == m_tsptr_w && "read pointer is not at top of stack");
     tokens[(++m_tsptr_w) % MaxRetractSize] = tok;
     m_tsptr_r++;
 }
 
-std::ostream &operator<<(std::ostream &os, const TokenSequence &tokenSeq) {
-    for (int i=0; i<tokenSeq.size(); i++) {
+std::ostream& operator<<(std::ostream& os, const TokenSequence& tokenSeq) {
+    for (int i = 0; i < tokenSeq.size(); i++) {
         os << "TokenSequence: " << tokenSeq[i]->toString() << endl;
     }
     return os;
@@ -1057,11 +1060,11 @@ public:
     // global value, provide token hold support, directly use it when wang to set err_token for
     // a symbol
     static inline TokenPtr holdToken;
-    static void holdErrorToken(TokenPtr tok)  {
+    static void holdErrorToken(TokenPtr tok) {
         holdToken = tok;
     }
 
-    ErrorReportSupport()  {
+    ErrorReportSupport() {
         tok = holdToken;
         holdToken = nullptr;
     }
@@ -1083,7 +1086,7 @@ public:
     };
     void printHierarchy(int hierarchy, string name) {
         cout << endl;
-        for (int i=0; i<hierarchy; i++) {
+        for (int i = 0; i < hierarchy; i++) {
             cout << "  |";
         }
         cout << "- " << name;
@@ -1108,7 +1111,7 @@ public:
     WordTokenPtr id;
     FactorSymbolPtr factor;
 
-    DeclSymbol(WordTokenPtr _id, FactorSymbolPtr _f): id(_id), factor(_f) { }
+    DeclSymbol(WordTokenPtr _id, FactorSymbolPtr _f) : id(_id), factor(_f) { }
     virtual int getKind() { return Kind::decl; }
     virtual void printAST(int hierarchy);
 };
@@ -1124,11 +1127,11 @@ public:
     enum FactorType { INT = 0, FLOAT, CHAR, STRING, ARRAY };
     int factorType = 0;
 
-    explicit FactorSymbol(IntTokenPtr i): factorType(FactorType::INT), integer(i) { }
-    explicit FactorSymbol(FloatTokenPtr f): factorType(FactorType::FLOAT), floating(f) { }
-    explicit FactorSymbol(CharTokenPtr c): factorType(FactorType::CHAR), character(c) { }
-    explicit FactorSymbol(StringTokenPtr s): factorType(FactorType::STRING), stringLiteral(s) { }
-    explicit FactorSymbol(ArraySymbolPtr a): factorType(FactorType::ARRAY), array(a) { }
+    explicit FactorSymbol(IntTokenPtr i) : factorType(FactorType::INT), integer(i) { }
+    explicit FactorSymbol(FloatTokenPtr f) : factorType(FactorType::FLOAT), floating(f) { }
+    explicit FactorSymbol(CharTokenPtr c) : factorType(FactorType::CHAR), character(c) { }
+    explicit FactorSymbol(StringTokenPtr s) : factorType(FactorType::STRING), stringLiteral(s) { }
+    explicit FactorSymbol(ArraySymbolPtr a) : factorType(FactorType::ARRAY), array(a) { }
 
     virtual int getKind() { return Kind::factor; }
     virtual void printAST(int hierarchy);
@@ -1142,18 +1145,18 @@ public:
     virtual void printAST(int hierarchy);
 };
 
-void DeclsSymbol::printAST(int hierarchy)  {
+void DeclsSymbol::printAST(int hierarchy) {
     printHierarchy(hierarchy, "DeclsSymbol");
     for (DeclSymbolPtr decl : decls) {
-        decl->printAST(hierarchy+1);
+        decl->printAST(hierarchy + 1);
     }
 }
 
 void DeclSymbol::printAST(int hierarchy) {
     printHierarchy(hierarchy, "DeclSymbol");
-    printHierarchy(hierarchy+1, "id: ");
+    printHierarchy(hierarchy + 1, "id: ");
     cout << (id ? id->name : "<Unnamed>");
-    factor->printAST(hierarchy+1);
+    factor->printAST(hierarchy + 1);
 }
 
 void FactorSymbol::printAST(int hierarchy) {
@@ -1167,13 +1170,13 @@ void FactorSymbol::printAST(int hierarchy) {
         cout << "\"" << stringLiteral->value << "\"";
     else if (factorType == FactorType::CHAR)
         cout << "'" << (char)character->value << "'";
-    else array->printAST(hierarchy+1);
+    else array->printAST(hierarchy + 1);
 }
 
 void ArraySymbol::printAST(int hierarchy) {
     printHierarchy(hierarchy, "ArraySymbol");
     for (FactorSymbolPtr f : arrayItems) {
-        f->printAST(hierarchy+1);
+        f->printAST(hierarchy + 1);
     }
 }
 
@@ -1194,8 +1197,6 @@ void ArraySymbol::printAST(int hierarchy) {
 
 class ASTBuilder : public IParser {
 public:
-    virtual TokenPtr buildXXX() { assert( false && "an April joke!." ); }
-
     inline DeclsSymbolPtr  root();
     DeclsSymbolPtr  decls() SYMBOL_UNCHECKED;
     DeclSymbolPtr   decl();
@@ -1227,7 +1228,7 @@ DeclSymbolPtr ASTBuilder::decl() {
         return make_shared<DeclSymbol>(id, factorSym);
     }
     else if (look->is(';') || look->is(',')) {
-            next();
+        next();
         return nullptr;
     }
     else {
@@ -1308,12 +1309,12 @@ public:
 template <class ValTy>
 class LinkListConstructor {
 public:
-    virtual ValTy  getValue() { assert(! "getValue() not implemented"); };
+    virtual ValTy  getValue() { assert(!"getValue() not implemented"); };
     virtual void   setValue(ValTy value) = 0;
     virtual LinkListConstructor<ValTy>* getNextItem() = 0;
-    virtual LinkListConstructor<ValTy>* getPreviousItem() { assert(! "getPreviousItem() not implemented"); }
+    virtual LinkListConstructor<ValTy>* getPreviousItem() { assert(!"getPreviousItem() not implemented"); }
     virtual void setNextItem(LinkListConstructor<ValTy>* _next) = 0;
-    virtual void setPreviousItem(LinkListConstructor<ValTy>* _prev) { assert(! "setPreviousItem() not implemented"); }
+    virtual void setPreviousItem(LinkListConstructor<ValTy>* _prev) { assert(!"setPreviousItem() not implemented"); }
 
     template <class ContainerTy>
     static LinkListConstructor* constructLinkList(vector<ValTy>& init) {
@@ -1387,7 +1388,7 @@ public:
         bool headAllow = true;
         cout << "[";
         for (LinkListConstructor* curr = head;
-             (curr != head || headAllow) && curr; curr = curr->getNextItem()) {
+            (curr != head || headAllow) && curr; curr = curr->getNextItem()) {
             headAllow = false;
             cout << curr->getValue() << ", ";
         }
@@ -1401,7 +1402,7 @@ public:
         head = head->getPreviousItem();
         bool headAllow = true;
         for (LinkListConstructor* curr = head;
-             (curr != head || headAllow) && curr; curr = curr->getPreviousItem()) {
+            (curr != head || headAllow) && curr; curr = curr->getPreviousItem()) {
             headAllow = false;
             cout << curr->getValue() << ", ";
         }
@@ -1442,7 +1443,7 @@ DEFINE_SHARED_PTR(DataLoader);
 
 template <class T, int N>
 struct vector_helper {
-    using value_type = vector<typename vector_helper<T, N-1>::value_type>;
+    using value_type = vector<typename vector_helper<T, N - 1>::value_type>;
 };
 
 template <class T>
@@ -1458,33 +1459,33 @@ protected:
     FactorSymbolPtr factorSym = nullptr;
 public:
 #define DEFINE_OPERATORS(op, baseFunc) operator op() { return as##baseFunc<op>(); }
-    template <class T=int64_t>
+    template <class T = int64_t>
     T asInt() { return (T)(factorSym->integer ? factorSym->integer->toInt() : (factorSym->floating ? factorSym->floating->toInt() : 0)); }
 #define INT_OPERATORS(x) DEFINE_OPERATORS(x, Int)
     INT_OPERATORS(int8_t)    INT_OPERATORS(uint8_t)
-    INT_OPERATORS(int16_t)    INT_OPERATORS(uint16_t)
-    INT_OPERATORS(int32_t)    INT_OPERATORS(uint32_t)
-    INT_OPERATORS(int64_t)    INT_OPERATORS(uint64_t)
+        INT_OPERATORS(int16_t)    INT_OPERATORS(uint16_t)
+        INT_OPERATORS(int32_t)    INT_OPERATORS(uint32_t)
+        INT_OPERATORS(int64_t)    INT_OPERATORS(uint64_t)
 
-    template <class T=double>
+        template <class T = double>
     T asFloat() { return (T)(factorSym->integer ? factorSym->integer->toFloat() : (factorSym->floating ? factorSym->floating->toFloat() : 0)); }
     DEFINE_OPERATORS(float, Float)
-    DEFINE_OPERATORS(double, Float)
+        DEFINE_OPERATORS(double, Float)
 
-    template <class T, int N>
-    typename std::enable_if_t<N==1, typename vector_helper<T, 1>::value_type> asNDArray() {
+        template <class T, int N>
+    typename std::enable_if_t<N == 1, typename vector_helper<T, 1>::value_type> asNDArray() {
         typename vector_helper<T, 1>::value_type vec = asArray<T>();
         return vec;
     }
 
     template <class T, int N>
-    typename std::enable_if_t<N!=1, typename vector_helper<T, N>::value_type> asNDArray() {
+    typename std::enable_if_t<N != 1, typename vector_helper<T, N>::value_type> asNDArray() {
         typename vector_helper<T, N>::value_type vec;
         if (!factorSym->array) return vec;
         for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
             DataResult dr; dr.factorSym = fact;
             if (!fact->array) continue; // Nested array only
-            vec.push_back(dr.asNDArray<T, N-1>());
+            vec.push_back(dr.asNDArray<T, N - 1>());
         }
         return vec;
     }
@@ -1576,7 +1577,7 @@ class NoSuchNameException : exception {
     const char* msg;
 public:
     NoSuchNameException(const char* _msg) { msg = _msg; }
-    const char * what() const noexcept override { return msg; }
+    const char* what() const noexcept override { return msg; }
 };
 
 class DataLoader : public DataResult {
@@ -1647,39 +1648,122 @@ private:
 };
 
 class SolutionTester {
+protected:
     vector<DataLoader> loaders;
-    function<bool (DataLoader& loader)> checkFn;
+    function<bool(DataLoader& loader)> checkFn;
 public:
-    void addTestCase(string case1) {
+    void addTestCase(string case_) {
         DataLoader loader;
         try {
-            loader.load(case1);
+            loader.load(case_);
             loaders.push_back(move(loader));
         }
         catch (exception e) {
             cout << "Error while loading test case: " << e.what() << endl;
         }
     }
-    void setCheckFn(function<bool (DataLoader& loader)> _checkFn) {
+    void setCheckFn(function<bool(DataLoader& loader)> _checkFn) {
         checkFn = _checkFn;
     }
     void test() {
-        int index=0;
+        int index = 0;
+        int success = 0, failed = 0;
         for (DataLoader& loader : loaders) {
             cout << "Checking case #" << index << endl;
             cout << "----------------------------------------------------\n";
             if (!checkFn(loader)) {
                 cout << "----------------------------------------------------\n";
-                cerr << "  Error while checking case #" << index << endl;
+                cout << "  Error while checking case #" << index << endl;
+                failed++;
             }
             else {
                 cout << "----------------------------------------------------\n";
                 cout << "  Test case # " << index << ": Passed" << endl;
+                success++;
             }
             index++;
             cout << "====================================================\n";
         }
+        cout << " TESTING COMPLETED: " << (success + failed) << " total, " << success << " passed, " << failed << "failed.\n";
     }
+};
+
+template <class T>
+struct is_std_function : public false_type { };
+
+template <class T>
+struct is_std_function<std::function<T>> : public true_type { };
+
+template <class T, class ...Args>
+struct is_std_function<T(Args...)> : public true_type { };
+
+template <class T>
+struct function_helper;
+
+template <class T, class ...Args>
+struct function_helper<T(*)(Args...)> {
+    using return_type = T;
+    using arguments = std::tuple<Args...>;
+};
+
+template <int i, class TupleTyDst, class TupleTySrc>
+typename std::enable_if_t < i<0, void>
+    initialize_tuple_with_another(TupleTyDst& tuple, const TupleTySrc& another, DataLoader& loader) {   }
+
+template <int i, class TupleTyDst, class TupleTySrc>
+typename std::enable_if_t< i >= 0, void>
+initialize_tuple_with_another(TupleTyDst& tuple, const TupleTySrc& another, DataLoader& loader) {
+    auto another_v = std::get<i>(another);
+    std::get<i>(tuple) = loader[i];
+    initialize_tuple_with_another<i - 1>(tuple, another, loader);
+}
+
+template <class AnswerTy, template<class> class Hash = std::hash>
+class EnhancedSoultionTester : protected SolutionTester {
+    vector_helper_t<AnswerTy, 1> answers;
+    Hash<AnswerTy> answer_hash_func;
+public:
+    void addTestCase(string case_, AnswerTy answer_) {
+        SolutionTester::addTestCase(case_);
+        answers.push_back(answer_);
+    }
+
+    void setCheckFn(function<bool(DataLoader& loader)> _checkFn) = delete;
+
+    template <class FuncTy, class... IndexType>
+    typename std::enable_if<std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexType)
+        and std::is_same_v<typename function_helper<FuncTy>::return_type, AnswerTy>, void>::type
+        test(FuncTy func, IndexType... arg_indexes) {
+        using function_args_tuple = typename function_helper<FuncTy>::arguments;
+        using function_return_type = typename function_helper<FuncTy>::return_type;
+        function_args_tuple params;
+        constexpr int max_index_of_indexes = sizeof...(IndexType) - 1;
+
+        int index = 0;
+        int success = 0, failed = 0;
+        for (DataLoader& loader : loaders) {
+            cout << "Checking case #" << index << endl;
+            cout << "----------------------------------------------------\n";
+            int is_passed = false;
+            initialize_tuple_with_another<max_index_of_indexes>(params, forward_as_tuple(arg_indexes...), loader);
+            function_return_type ret_value = std::apply(func, params);
+            is_passed = answer_hash_func(ret_value) == answer_hash_func(answers[index]);
+            if (!is_passed) {
+                cout << "----------------------------------------------------\n";
+                cout << "  Error while checking case #" << index << endl;
+                failed++;
+            }
+            else {
+                cout << "----------------------------------------------------\n";
+                cout << "  Test case # " << index << ": Passed" << endl;
+                success++;
+            }
+            index++;
+            cout << "====================================================\n";
+        }
+        cout << " TESTING COMPLETED: " << (success + failed) << " total, " << success << " passed, " << failed << " failed.\n";
+    }
+
 };
 
 #endif //DP_DATALOADER_H
