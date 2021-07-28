@@ -1672,12 +1672,12 @@ public:
             cout << "Checking case #" << index << endl;
             cout << "----------------------------------------------------\n";
             if (!checkFn(loader)) {
-                cout << "----------------------------------------------------\n";
+                cout << "\n----------------------------------------------------\n";
                 cout << "  Error while checking case #" << index << endl;
                 failed++;
             }
             else {
-                cout << "----------------------------------------------------\n";
+                cout << "\n----------------------------------------------------\n";
                 cout << "  Test case # " << index << ": Passed" << endl;
                 success++;
             }
@@ -1714,7 +1714,8 @@ template <int i, class TupleTyDst, class TupleTySrc>
 typename std::enable_if_t< i >= 0, void>
 initialize_tuple_with_another(TupleTyDst& tuple, const TupleTySrc& another, DataLoader& loader) {
     auto another_v = std::get<i>(another);
-    std::get<i>(tuple) = loader[i];
+    static_assert(is_same_v<decltype(another_v), const char*> || is_integral_v<decltype(another_v)>);
+    std::get<i>(tuple) = loader[another_v];
     initialize_tuple_with_another<i - 1>(tuple, another, loader);
 }
 
@@ -1749,12 +1750,12 @@ public:
             function_return_type ret_value = std::apply(func, params);
             is_passed = answer_hash_func(ret_value) == answer_hash_func(answers[index]);
             if (!is_passed) {
-                cout << "----------------------------------------------------\n";
+                cout << "\n----------------------------------------------------\n";
                 cout << "  Error while checking case #" << index << endl;
                 failed++;
             }
             else {
-                cout << "----------------------------------------------------\n";
+                cout << "\n----------------------------------------------------\n";
                 cout << "  Test case # " << index << ": Passed" << endl;
                 success++;
             }
@@ -1765,5 +1766,40 @@ public:
     }
 
 };
+
+template <class FuncTy, class... IndexTy>
+requires requires { is_std_function<FuncTy>::value; }
+class EnhancedTesterWrapper {
+public:
+    EnhancedSoultionTester<typename function_helper<FuncTy>::return_type> ST;
+    tuple<IndexTy...> indexes;
+    FuncTy func;
+
+    EnhancedTesterWrapper(FuncTy _func, IndexTy... idx) {
+        indexes = forward_as_tuple(idx...);
+        func = _func;
+    }
+
+    template <class... Args>
+    EnhancedTesterWrapper<FuncTy, IndexTy...>& addTestCase(Args... args) {
+        ST.addTestCase(std::forward<Args>(args)...);
+        return *this;
+    }
+
+    void test() {
+        tuple<FuncTy> funcTuple = make_tuple(func);
+        tuple<FuncTy, IndexTy...> paramsTuple = tuple_cat(funcTuple, indexes);
+        std::apply([=]<class... Args>(Args... args) {
+            ST.template test(std::forward<Args>(args)...);
+            }, paramsTuple);
+    }
+};
+
+template <class FuncTy, class... IndexTy>
+typename std::enable_if<std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexTy)
+                        , EnhancedTesterWrapper<FuncTy, IndexTy...>>::type
+createSolutionTester(FuncTy _func, IndexTy... idx) {
+    return std::move(EnhancedTesterWrapper<FuncTy, IndexTy...>(_func, std::forward<IndexTy>(idx)...));
+}
 
 #endif //DP_DATALOADER_H

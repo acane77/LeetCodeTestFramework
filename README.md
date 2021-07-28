@@ -142,48 +142,26 @@ int main() {
 ```
 
 The result will tell you which test case has passed, and which case hasn't, shown below:
+
 ```
 Checking case #0
 ----------------------------------------------------
-	-	a	d	c	e	b   $
--	1	0	0	0	0	0	0	
-*	1	1	1	1	1	1	1	
-*	1	1	1	1	1	1	1	
-*	1	1	1	1	1	1	1	
-a	0	1	0	0	0	0	0	
-*	0	1	1	1	1	1	1	
-*	0	1	1	1	1	1	1	
-b	0	0	0	0	0	1	0	
-$	0	0	0	0	0	0	1	
+
 ----------------------------------------------------
   Test case # 0: Passed
 ====================================================
 Checking case #1
 ----------------------------------------------------
-	-	a	c	d	c	b	$
--	1	0	0	0	0	0	0	
-a	0	1	0	0	0	0	0	
-*	0	1	1	1	1	1	1	
-c	0	0	1	0	1	0	0	
-?	0	0	0	1	0	1	0	
-b	0	0	0	0	0	0	0	
-$	0	0	0	0	0	0	0	
+
 ----------------------------------------------------
+  Test case # 1: Passed
 ====================================================
-Checking case #2
-----------------------------------------------------
-	-	c	b   $
--	1	0	0	0	
-?	0	1	0	0	
-a	0	0	0	0	
-$	0	0	0	0	
-----------------------------------------------------
-  Test case # 2: Passed
-====================================================
-  Error while checking case #1
+ TESTING COMPLETED: 2 total, 2 passed, 0 failed.
 ```
 
 ### 3. Using an Enhanced Solution Tester
+
+#### **3.1 Using an EnhancedSolutionTester**
 
 Instead of setting a checking function manually, use of `EnhancedSolutionTester` is much easier.
 
@@ -205,3 +183,25 @@ int main() {
                             // the test cases in string (a.k.a, the DataLoader)
 }
 ```
+
+#### **3.2 Using a functional interface**
+
+We provided a functional interface, You can use `createSolutionTester` if you do not want to make a soultion tester insance manually.
+
+```c++
+#include "dataloader.h"
+
+int test(vector<vector<int>> a, vector<int> b) {
+    cout << a[0][1] << " " << b[1] << endl;
+    return a[0][1] + b[1];
+}
+
+int main() {
+    // where test is the function name, 0 and b are parameter indexes.
+    createSolutionTester(test, 0, "b")
+        .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,2,3,4]", 4)
+        .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,4]", 6)
+        .test();
+}
+```
+
