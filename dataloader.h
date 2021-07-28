@@ -1697,11 +1697,20 @@ struct is_std_function<std::function<T>> : public true_type { };
 template <class T, class ...Args>
 struct is_std_function<T(Args...)> : public true_type { };
 
+template <class T, class ...Args>
+struct is_std_function<std::function<T(Args...)>> : public true_type { };
+
 template <class T>
 struct function_helper;
 
 template <class T, class ...Args>
 struct function_helper<T(*)(Args...)> {
+    using return_type = T;
+    using arguments = std::tuple<Args...>;
+};
+
+template <class T, class ...Args>
+struct function_helper<std::function<T(Args...)>> {
     using return_type = T;
     using arguments = std::tuple<Args...>;
 };
