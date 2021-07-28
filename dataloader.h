@@ -1837,8 +1837,51 @@ typename std::enable_if<is_member_function_pointer_v<FuncTy> and
                         std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexTy)
         , EnhancedTesterWrapper<typename function_helper<FuncTy>::functional_type, IndexTy...>>::type
 createSolutionTester(FuncTy _func, IndexTy... idx) {
-    return std::move(createSolutionTester(get_non_member_function(_func), idx...));
+    return std::move(createSolutionTester(get_non_member_function(_func), std::forward<IndexTy>(idx)...));
 }
+
+// ========== Hasher ==========
+template <class T>
+inline void lavander_hash_combine(std::size_t& seed, const T& v) {
+    std::hash<T> hasher;
+    const std::size_t kMul = 0x9ddfea08eb382d69ULL;
+    std::size_t a = (hasher(v) ^ seed) * kMul;
+    a ^= (a >> 47);
+    std::size_t b = (seed ^ a) * kMul;
+    b ^= (b >> 47);
+    seed = b * kMul;
+}
+
+// Inject to namespace std
+namespace std {
+    template <class T>
+    struct hash<vector<T>> {
+        size_t operator()(const vector<T>& vec) {
+            std::hash<T> hasher;
+            std::size_t seed = 0;
+            for (auto it=vec.begin(); it != vec.end(); ++it) {
+                const std::size_t kMul = 0x9ddfea08eb382d69ULL;
+                std::size_t a = (hasher(*it)) * kMul;
+                seed += a;
+            }
+            return seed;
+        }
+    };
+}
+
+// sequence-dependent hash
+template <class T>
+struct seq_dependent_container_hash ; //undefined
+
+template <class T>
+struct seq_dependent_container_hash<vector<T>> {
+    size_t operator()(const vector<T>& vec) {
+        std::size_t seed = 0;
+        for (auto it=vec.begin(); it != vec.end(); ++it)
+            hash_combine(seed, *it);
+        return seed;
+    }
+};
 
 #endif //DP_DATALOADER_H
 
