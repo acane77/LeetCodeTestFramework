@@ -189,6 +189,9 @@ int main() {
 We provided a functional interface, You can use `createSolutionTester` if you do not want to make a soultion tester insance manually.
 
 ```c++
+#include <iostream>
+#include <cmath>
+#include <vector>
 #include "dataloader.h"
 
 int test(vector<vector<int>> a, vector<int> b) {
@@ -196,12 +199,26 @@ int test(vector<vector<int>> a, vector<int> b) {
     return a[0][1] + b[1];
 }
 
+class Solution {
+public:
+    int test(vector<vector<int>> a, vector<int> b) {
+        cout << a[0][1] << " " << b[1] << endl;
+        return a[0][1] + b[1];
+    }
+};
+
 int main() {
+    // where &S::test is a class member function address, 0 and b are parameter indexes.
+    createSolutionTester(&Solution::test, 0, "b")
+            .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,2,3,4]", 4)
+            .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,4]", 6)
+            .test();
+
     // where test is the function name, 0 and b are parameter indexes.
     createSolutionTester(test, 0, "b")
-        .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,2,3,4]", 4)
-        .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,4]", 6)
-        .test();
+            .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,2,3,4]", 4)
+            .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,4]", 6)
+            .test();
 }
 ```
 
