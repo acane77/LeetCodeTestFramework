@@ -1715,6 +1715,14 @@ struct function_helper<std::function<T(Args...)>> {
     using arguments = std::tuple<Args...>;
 };
 
+template <class T, class C, class ...Args>
+struct function_helper<T (C::*)(Args...)> {
+    using return_type = T;
+    using arguments = std::tuple<Args...>;
+    using class_type = C;
+    using functional_type = std::function<T (Args...)>;
+};
+
 template <int i, class TupleTyDst, class TupleTySrc>
 typename std::enable_if_t < i<0, void>
     initialize_tuple_with_another(TupleTyDst& tuple, const TupleTySrc& another, DataLoader& loader) {   }
@@ -1805,10 +1813,31 @@ public:
 };
 
 template <class FuncTy, class... IndexTy>
-typename std::enable_if<std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexTy)
-                        , EnhancedTesterWrapper<FuncTy, IndexTy...>>::type
+typename std::enable_if<!is_member_function_pointer_v<FuncTy> and
+                        std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexTy)
+        , EnhancedTesterWrapper<FuncTy, IndexTy...>>::type
 createSolutionTester(FuncTy _func, IndexTy... idx) {
     return std::move(EnhancedTesterWrapper<FuncTy, IndexTy...>(_func, std::forward<IndexTy>(idx)...));
+}
+
+template <class F>
+typename function_helper<F>::functional_type get_non_member_function(F func) {
+    using ret_t = typename function_helper<F>::return_type;
+    typename function_helper<F>::functional_type f = [=]<class...Args> (Args... args) -> ret_t {
+        using class_t = typename function_helper<F>::class_type;
+        class_t _c;
+        auto mem_fn_v = std::mem_fn(func);
+        return mem_fn_v(&_c, forward<Args>(args)...);
+    };
+    return f;
+}
+
+template <class FuncTy, class... IndexTy>
+typename std::enable_if<is_member_function_pointer_v<FuncTy> and
+                        std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexTy)
+        , EnhancedTesterWrapper<typename function_helper<FuncTy>::functional_type, IndexTy...>>::type
+createSolutionTester(FuncTy _func, IndexTy... idx) {
+    return std::move(createSolutionTester(get_non_member_function(_func), idx...));
 }
 
 #endif //DP_DATALOADER_H
