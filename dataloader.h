@@ -1659,12 +1659,13 @@ public:
     void test() {
         int index = 0;
         int success = 0, failed = 0;
+        cout << "====================================================\n";
         for (DataLoader& loader : loaders) {
             cout << "Checking case #" << index << endl;
             cout << "----------------------------------------------------\n";
             if (!checkFn(loader)) {
                 cout << "\n----------------------------------------------------\n";
-                cout << "  Error while checking case #" << index << endl;
+                cout << "  Test case #" << index << ": Failed" << endl;
                 failed++;
             }
             else {
@@ -1675,7 +1676,7 @@ public:
             index++;
             cout << "====================================================\n";
         }
-        cout << " TESTING COMPLETED: " << (success + failed) << " total, " << success << " passed, " << failed << "failed.\n";
+        cout << " TESTING COMPLETED: " << (success + failed) << " total, " << success << " passed, " << failed << " failed.\n";
     }
 };
 
@@ -1760,30 +1761,15 @@ public:
         using function_return_type = typename function_helper<FuncTy>::return_type;
         function_args_tuple params;
         constexpr int max_index_of_indexes = sizeof...(IndexType) - 1;
-
         int index = 0;
-        int success = 0, failed = 0;
-        for (DataLoader& loader : loaders) {
-            cout << "Checking case #" << index << endl;
-            cout << "----------------------------------------------------\n";
-            int is_passed = false;
+
+        SolutionTester::setCheckFn([&](DataLoader loader) -> bool {
             initialize_tuple_with_another<max_index_of_indexes>(params, forward_as_tuple(arg_indexes...), loader);
             function_return_type ret_value = std::apply(func, params);
-            is_passed = answer_hash_func(ret_value) == answer_hash_func(answers[index]);
-            if (!is_passed) {
-                cout << "\n----------------------------------------------------\n";
-                cout << "  Error while checking case #" << index << endl;
-                failed++;
-            }
-            else {
-                cout << "\n----------------------------------------------------\n";
-                cout << "  Test case # " << index << ": Passed" << endl;
-                success++;
-            }
-            index++;
-            cout << "====================================================\n";
-        }
-        cout << " TESTING COMPLETED: " << (success + failed) << " total, " << success << " passed, " << failed << " failed.\n";
+            bool is_passed = answer_hash_func(ret_value) == answer_hash_func(answers[index++]);
+            return is_passed;
+        });
+        SolutionTester::test();
     }
 
     template <class FuncTy, class... IndexType>
