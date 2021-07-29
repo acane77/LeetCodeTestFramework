@@ -1727,6 +1727,18 @@ initialize_tuple_with_another(TupleTyDst& tuple, const TupleTySrc& another, Data
     initialize_tuple_with_another<i - 1>(tuple, another, loader);
 }
 
+template <class F>
+typename function_helper<F>::functional_type _remove_class_name(F func) {
+    using ret_t = typename function_helper<F>::return_type;
+    typename function_helper<F>::functional_type f = [=]<class...Args> (Args... args) -> ret_t {
+        using class_t = typename function_helper<F>::class_type;
+        class_t _c;
+        auto mem_fn_v = std::mem_fn(func);
+        return mem_fn_v(&_c, forward<Args>(args)...);
+    };
+    return f;
+}
+
 template <class AnswerTy, template<class> class Hash = std::hash>
 class EnhancedSoultionTester : protected SolutionTester {
     vector_helper_t<AnswerTy, 1> answers;
@@ -1741,7 +1753,8 @@ public:
 
     template <class FuncTy, class... IndexType>
     typename std::enable_if<std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexType)
-        and std::is_same_v<typename function_helper<FuncTy>::return_type, AnswerTy>, void>::type
+        and std::is_same_v<typename function_helper<FuncTy>::return_type, AnswerTy>
+        and not is_member_function_pointer_v<FuncTy>, void>::type
         test(FuncTy func, IndexType... arg_indexes) {
         using function_args_tuple = typename function_helper<FuncTy>::arguments;
         using function_return_type = typename function_helper<FuncTy>::return_type;
@@ -1773,6 +1786,14 @@ public:
         cout << " TESTING COMPLETED: " << (success + failed) << " total, " << success << " passed, " << failed << " failed.\n";
     }
 
+    template <class FuncTy, class... IndexType>
+    typename std::enable_if<std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexType)
+                            and std::is_same_v<typename function_helper<FuncTy>::return_type, AnswerTy>
+                            and is_member_function_pointer_v<FuncTy>, void>::type
+    test(FuncTy func, IndexType... arg_indexes) {
+        test(_remove_class_name(func), std::forward<IndexType>(arg_indexes)...);
+    }
+
 };
 
 template <class FuncTy, class... IndexTy>
@@ -1798,7 +1819,7 @@ public:
         tuple<FuncTy> funcTuple = make_tuple(func);
         tuple<FuncTy, IndexTy...> paramsTuple = tuple_cat(funcTuple, indexes);
         std::apply([=]<class... Args>(Args... args) {
-            ST.template test(std::forward<Args>(args)...);
+            ST.template test<FuncTy>(std::forward<Args>(args)...);
             }, paramsTuple);
     }
 };
@@ -1811,24 +1832,12 @@ createSolutionTester(FuncTy _func, IndexTy... idx) {
     return std::move(EnhancedTesterWrapper<FuncTy, IndexTy...>(_func, std::forward<IndexTy>(idx)...));
 }
 
-template <class F>
-typename function_helper<F>::functional_type get_non_member_function(F func) {
-    using ret_t = typename function_helper<F>::return_type;
-    typename function_helper<F>::functional_type f = [=]<class...Args> (Args... args) -> ret_t {
-        using class_t = typename function_helper<F>::class_type;
-        class_t _c;
-        auto mem_fn_v = std::mem_fn(func);
-        return mem_fn_v(&_c, forward<Args>(args)...);
-    };
-    return f;
-}
-
 template <class FuncTy, class... IndexTy>
 typename std::enable_if<is_member_function_pointer_v<FuncTy> and
                         std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexTy)
         , EnhancedTesterWrapper<typename function_helper<FuncTy>::functional_type, IndexTy...>>::type
 createSolutionTester(FuncTy _func, IndexTy... idx) {
-    return std::move(createSolutionTester(get_non_member_function(_func), std::forward<IndexTy>(idx)...));
+    return std::move(createSolutionTester(_remove_class_name(_func), std::forward<IndexTy>(idx)...));
 }
 
 // ========== Hasher ==========
