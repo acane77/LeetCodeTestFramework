@@ -1833,7 +1833,7 @@ createSolutionTester(FuncTy _func, IndexTy... idx) {
 
 // ========== Hasher ==========
 template <class T>
-inline void lavander_hash_combine(std::size_t& seed, const T& v) {
+inline void dp_hash_combine(std::size_t& seed, const T& v) {
     std::hash<T> hasher;
     const std::size_t kMul = 0x9ddfea08eb382d69ULL;
     std::size_t a = (hasher(v) ^ seed) * kMul;
@@ -1869,7 +1869,7 @@ struct seq_dependent_container_hash<vector<T>> {
     size_t operator()(const vector<T>& vec) {
         std::size_t seed = 0;
         for (auto it=vec.begin(); it != vec.end(); ++it)
-            hash_combine(seed, *it);
+            dp_hash_combine(seed, *it);
         return seed;
     }
 };
