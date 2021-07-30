@@ -32,12 +32,9 @@ is Link Lists, Nested Arrays.
 With this library, you can directly copy & paste the sample in text and load in C++ code like this:
 ```c++
 int main() {
-    DataLoader loader;
-    loader.load(R"sample(
-        A = [1,2,3,4,5,6,7,8], k=4
-    )sample");
+    auto loader = "A = [1,2,3,4,5,6,7,8], k=4"_dl;
     int k = loader["k"];
-    vector<int> A = loader["A"].asArray<int>();
+    vector<int> A = loader["A"];
     int result = Solution().findKthMaxNumber(A, k);
     cout << result;
 }
@@ -46,17 +43,17 @@ int main() {
 Specially, you can just comment out samples when testing for multiply samples with `//` or `/* */`.
 for example:
 ```c++
-loader.load(R"sample(
+auto loader = R"sample(
     //A = [1,2,3,4,5,6,7,8], k=4
     /*
       A = [1,2,3]
       k = 2
     */
     A = [1,2,3,4,5], k=3
-)sample");
+)sample"_dl;
 
 int k = loader["k"]; // k=3
-vector<int> A = loader["A"].asArray<int>(); // A = [1,2,3,4,5]
+vector<int> A = loader["A"]; // A = [1,2,3,4,5]
 ```
 
 **Load a Linked List**
@@ -78,8 +75,7 @@ struct ListNode : public LinkListConstructor<int> {
 };
 
 int main() {
-    DataLoader loader;
-    loader.load("[1,2,3,4,5]");
+    DataLoader loader = "[1,2,3,4,5]"_dl;
     // 3. Use asLinkedList series methods to construct Link List
     ListNode* L1 = loader.asLinkedList<int, ListNode>();
     ListNode* L2 = loader.asLoopLinkedList<int, ListNode>();
@@ -95,6 +91,7 @@ The output is
 [1, 2, 3, 4, 5, ]
 [5, 4, 3, 2, 1, ]
 ```
+
 ### 2. Solution Tester
 
 When testing multiply test cases, it's usually not convince to copy 
@@ -211,13 +208,13 @@ int main() {
     // where &S::test is a class member function address, 0 and b are parameter indexes.
     createSolutionTester(&Solution::test, 0, "b")
             .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,2,3,4]", 4)
-            .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,4]", 6)
+            .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,4]", "6"_dl)
             .test();
 
     // where test is the function name, 0 and b are parameter indexes.
     createSolutionTester(test, 0, "b")
             .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,2,3,4]", 4)
-            .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,4]", 6)
+            .addTestCase(" a=[[1,2,3,4],[2,3,4,5]] b=[1,4]", "6"_dl)
             .test();
 }
 ```
