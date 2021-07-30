@@ -1636,7 +1636,18 @@ private:
         if (idx >= AST->decls.size()) return nullptr;
         return AST->decls[idx];
     }
+
+public:
+    static DataLoader create(const char* sample_) {
+        DataLoader dl;
+        dl.load(sample_);
+        return std::move(dl);
+    }
 };
+
+DataLoader operator "" _dl (const char* sample_, size_t) {
+    return std::move(DataLoader::create(sample_));
+}
 
 class SolutionTester {
 protected:
@@ -1749,6 +1760,18 @@ public:
         SolutionTester::addTestCase(case_);
         answers.push_back(answer_);
     }
+
+    void addTestCase(const DataLoader& case_, AnswerTy answer_) {
+        loaders.push_back(case_);
+        answers.push_back(answer_);
+    }
+
+    template <class CaseTy, class AnswerTy_>
+    typename std::enable_if<!(is_same_v<CaseTy, std::string> ||
+                              is_same_v<CaseTy, DataLoader> ||
+                              is_same_v<typename std::decay<CaseTy>::type, const char*> ||
+                              is_same_v<typename std::decay<CaseTy>::type, char*>), void>::type
+        addTestCase(const CaseTy&, const AnswerTy_&) = delete;
 
     void setCheckFn(function<bool(DataLoader& loader)> _checkFn) = delete;
 
