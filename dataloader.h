@@ -30,6 +30,12 @@
 #include <sstream>
 #include <functional>
 #include <cassert>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
 
 using namespace std;
 
@@ -1653,6 +1659,36 @@ class SolutionTester {
 protected:
     vector<DataLoader> loaders;
     function<bool(DataLoader& loader)> checkFn;
+
+    int terminal_width = 150;
+    int terminal_height = 30;
+
+    void get_terminal_size() {
+        int columns, rows;
+#if defined(_WIN32)
+        CONSOLE_SCREEN_BUFFER_INFO csbi;
+        GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
+        columns = (int)(csbi.srWindow.Right - csbi.srWindow.Left + 1);
+        rows = (int)(csbi.srWindow.Bottom - csbi.srWindow.Top + 1);
+#else
+        struct winsize w;
+        ioctl(fileno(stdout), TIOCGWINSZ, &w);
+        columns = (int)(w.ws_col);
+        rows = (int)(w.ws_row);
+#endif
+        if (columns > 0)
+            terminal_width = columns;
+        if (rows > 0)
+            terminal_height = rows;
+    }
+
+    void printSpliter(char ch, bool leadingNewLine = false) {
+        if (leadingNewLine)
+            cout << endl;
+        for (int i=0; i<terminal_width; i++)
+            cout << ch;
+        cout << endl;
+    }
 public:
     void addTestCase(string case_) {
         DataLoader loader;
@@ -1668,24 +1704,25 @@ public:
         checkFn = _checkFn;
     }
     void test() {
+        get_terminal_size();
         int index = 0;
         int success = 0, failed = 0;
-        cout << "====================================================\n";
+        printSpliter('=');
         for (DataLoader& loader : loaders) {
             cout << "Checking case #" << index << endl;
-            cout << "----------------------------------------------------\n";
+            printSpliter('-');
             if (!checkFn(loader)) {
-                cout << "\n----------------------------------------------------\n";
+                printSpliter('-', true);
                 cout << "  Test case #" << index << ": Failed" << endl;
                 failed++;
             }
             else {
-                cout << "\n----------------------------------------------------\n";
+                printSpliter('-', true);
                 cout << "  Test case # " << index << ": Passed" << endl;
                 success++;
             }
             index++;
-            cout << "====================================================\n";
+            printSpliter('=');
         }
         cout << " TESTING COMPLETED: " << (success + failed) << " total, " << success << " passed, " << failed << " failed.\n";
     }
@@ -1808,11 +1845,11 @@ public:
 template <class FuncTy, class... IndexTy>
 requires requires { is_std_function<FuncTy>::value; }
 class EnhancedTesterWrapper {
-public:
     EnhancedSoultionTester<typename function_helper<FuncTy>::return_type> ST;
     tuple<IndexTy...> indexes;
     FuncTy func;
 
+public:
     EnhancedTesterWrapper(FuncTy _func, IndexTy... idx) {
         indexes = forward_as_tuple(idx...);
         func = _func;
