@@ -1827,6 +1827,12 @@ public:
             initialize_tuple_with_another<max_index_of_indexes>(params, forward_as_tuple(arg_indexes...), loader);
             function_return_type ret_value = std::apply(func, params);
             bool is_passed = answer_hash_func(ret_value) == answer_hash_func(answers[index++]);
+            constexpr int is_printable = requires (const function_return_type& t) { std::cout << t; };
+            if constexpr(is_printable) {
+                printSpliter('-', true);
+                cout << "Value:     " << ret_value << endl;
+                cout << "Expected:  " << answers[index-1];
+            }
             return is_passed;
         });
         SolutionTester::test();
