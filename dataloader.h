@@ -1788,6 +1788,14 @@ typename function_helper<F>::functional_type _remove_class_name(F func) {
     return f;
 }
 
+template<class... Args>
+struct decay_args_tuple;
+
+template<class... Args>
+struct decay_args_tuple<std::tuple<Args...>> {
+    using type = std::tuple<std::decay_t<Args>...>;
+};
+
 template <class AnswerTy, template<class> class Hash = std::hash>
 class EnhancedSoultionTester : protected SolutionTester {
     vector_helper_t<AnswerTy, 1> answers;
@@ -1819,7 +1827,7 @@ public:
         test(FuncTy func, IndexType... arg_indexes) {
         using function_args_tuple = typename function_helper<FuncTy>::arguments;
         using function_return_type = typename function_helper<FuncTy>::return_type;
-        function_args_tuple params;
+        typename decay_args_tuple<function_args_tuple>::type params;
         constexpr int max_index_of_indexes = sizeof...(IndexType) - 1;
         int index = 0;
 
