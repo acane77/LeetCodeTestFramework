@@ -1568,6 +1568,10 @@ public:
 
     string asString() { return factorSym->stringLiteral ? factorSym->stringLiteral->value : ""; }
     char asChar() { return factorSym->character ? factorSym->character->value : 0; }
+
+    operator string() { return asString(); }
+    operator const char*() { return factorSym->stringLiteral ? factorSym->stringLiteral->value.c_str() : ""; }
+    operator char*() { return (char*)this->operator const char *(); }
 };
 
 class NoSuchNameException : exception {
@@ -1772,7 +1776,10 @@ typename std::enable_if_t< i >= 0, void>
 initialize_tuple_with_another(TupleTyDst& tuple, const TupleTySrc& another, DataLoader& loader) {
     auto another_v = std::get<i>(another);
     static_assert(is_same_v<decltype(another_v), const char*> || is_integral_v<decltype(another_v)>);
-    std::get<i>(tuple) = loader[another_v];
+    if constexpr(is_convertible_v<decltype(std::get<i>(tuple)), std::string>)
+        std::get<i>(tuple) = string(loader[another_v]);
+    else
+        std::get<i>(tuple) = loader[another_v];
     initialize_tuple_with_another<i - 1>(tuple, another, loader);
 }
 
