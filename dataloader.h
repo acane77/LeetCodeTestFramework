@@ -1594,8 +1594,10 @@ public:
     operator const char*() { return factorSym->stringLiteral ? factorSym->stringLiteral->value.c_str() : ""; }
     operator char*() { return (char*)this->operator const char *(); }
 
-    //template<class LinkListTy>
-    //std::enable_if
+    template<class LinkListTy>
+    operator LinkListTy* () {
+        return asSingleOrDualLinkedList<LinkListTy>();
+    }
 };
 
 class NoSuchNameException : exception {
