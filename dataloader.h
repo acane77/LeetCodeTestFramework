@@ -1423,30 +1423,39 @@ public:
     }
 };
 
-#define LL_DEFINE_NEXT_PTR(nextPropName, typeName) \
+#define LL_NEXT(nextPropName) \
     LinkListConstructor<int> * getNextItem() override {\
         return nextPropName;\
     }                                          \
     void setNextItem(LinkListConstructor<int> *_next) override {\
-        nextPropName = (typeName*)_next;\
+        nextPropName = (std::decay_t<decltype(*this)>*)_next;\
     }
 
-#define LL_DEFINE_PREV_PTR(prevPropName, typeName) \
+#define LL_PREV(prevPropName) \
     LinkListConstructor<int> * getPreviousItem() override {\
         return prevPropName;\
     }                                          \
     void setPreviousItem(LinkListConstructor<int> *_prev) override {\
-        prevPropName = (typeName*)_prev;\
+        prevPropName = (std::decay_t<decltype(*this)>*)_prev;\
     }
 
-#define LL_DEFINE_VALUE(valuePropName, valueType) \
-    valueType getValue() override {\
+#define LL_VALUE(valuePropName) \
+    decltype(valuePropName) getValue() override {\
         return valuePropName;\
     }\
-    void setValue(valueType value) override {\
+    void setValue(decltype(valuePropName) value) override {\
         valuePropName = value;\
     }\
-    using value_type = valueType;
+    using value_type = decltype(valuePropName);
+
+#define LL_SINGLE(next, val) \
+    LL_NEXT(next)\
+    LL_VALUE(val)
+
+#define LL_DUAL(next, prev, val) \
+    LL_NEXT(next)                \
+    LL_PREV(prev)                \
+    LL_VALUE(val)
 
 // ================== Data Loader =================
 DEFINE_SHARED_PTR(DataResult);
