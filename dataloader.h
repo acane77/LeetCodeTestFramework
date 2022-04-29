@@ -1381,6 +1381,18 @@ public:
         return head;
     }
 
+    template <class ContainerTy>
+    static typename std::enable_if<is_base_of_v<LinkListConstructor, ContainerTy>, LinkListConstructor*>::type
+    construct(vector<ValTy>& init) {
+        if (&ContainerTy::getNextItem == &LinkListConstructor::getNextItem) {
+            throw runtime_error("getNextItem() is not implemented");
+        }
+        else if (&ContainerTy::getPreviousItem == &LinkListConstructor::getPreviousItem) {
+            return constructLinkList<ContainerTy>(init);
+        }
+        return constructDualLinkList<ContainerTy>(init);
+    }
+
     static void printList(LinkListConstructor* head) {
         bool headAllow = true;
         cout << "[";
@@ -1554,6 +1566,13 @@ public:
     ContainerTy* asLoopDualLinkedList() {
         vector<ValTy> init = asArray<ValTy>();
         LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructLoopDualLinkList<ContainerTy>(init);
+        return (ContainerTy*)llist;
+    }
+
+    template <class ValTy, class ContainerTy>
+    ContainerTy* asSingleOrDualLinkedList() {
+        vector<ValTy> init = asArray<ValTy>();
+        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template construct<ContainerTy>(init);
         return (ContainerTy*)llist;
     }
 
