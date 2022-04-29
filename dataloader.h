@@ -1312,6 +1312,7 @@ public:
     virtual LinkListConstructor<ValTy>* getPreviousItem() { assert(!"getPreviousItem() not implemented"); }
     virtual void setNextItem(LinkListConstructor<ValTy>* _next) = 0;
     virtual void setPreviousItem(LinkListConstructor<ValTy>* _prev) { assert(!"setPreviousItem() not implemented"); }
+    virtual ~LinkListConstructor() { }
 
     template <class ContainerTy>
     static LinkListConstructor* constructLinkList(vector<ValTy>& init) {
