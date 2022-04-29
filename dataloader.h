@@ -1521,21 +1521,15 @@ public:
         for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
             DataResult dr; dr.factorSym = fact;
             if (fact->array) continue; // Do not support nested array
-            else if (fact->integer) vec.push_back((T)dr);
-            else if (fact->floating) vec.push_back((T)dr);
-            else if (fact->character) vec.push_back((int8_t)dr);
-        }
-        return vec;
-    }
 
-    template <>
-    vector<string> asArray<string>() {
-        vector<string> vec;
-        if (!factorSym->array) return vec;
-        for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
-            DataResult dr; dr.factorSym = fact;
-            if (fact->array) continue; // Do not support nested array
-            vec.push_back(dr.asString());
+            // special process for string
+            if constexpr(is_same_v<T, string> or is_same_v<T, const char*> or is_same_v<T, char*>)
+                vec.push_back(dr.operator T());
+            else {
+                if (fact->integer) vec.push_back((T) dr);
+                else if (fact->floating) vec.push_back((T) dr);
+                else if (fact->character) vec.push_back((int8_t) dr);
+            }
         }
         return vec;
     }
