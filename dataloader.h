@@ -1440,13 +1440,13 @@ public:
     }
 
 #define LL_VALUE(valuePropName) \
+    using value_type = decltype(valuePropName);\
     decltype(valuePropName) getValue() override {\
         return valuePropName;\
     }\
     void setValue(decltype(valuePropName) value) override {\
         valuePropName = value;\
-    }\
-    using value_type = decltype(valuePropName);
+    }
 
 #define LL_SINGLE(next, val) \
     LL_NEXT(next)\
@@ -1456,6 +1456,9 @@ public:
     LL_NEXT(next)                \
     LL_PREV(prev)                \
     LL_VALUE(val)
+
+#define LL_SINGLE_DEFAULT LL_SINGLE(next, val)
+#define LL_DUAL_DEFAULT   LL_DUAL(next, prev, val)
 
 // ================== Data Loader =================
 DEFINE_SHARED_PTR(DataResult);
