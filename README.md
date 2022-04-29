@@ -4,11 +4,78 @@ Load variables from leetcode sample data. And test them in batch.
 
 This is a header-only library, just include `dataloader.h` to use.
 
-For example: 
+## Sample usage
+
+Using the solution tester to test.
+
+You can just test the functions without a hand-craft link list content, all things are done by the framework!
+
+```c++
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include "dataloader.h"
+
+// List node is defined by LeetCode problem.
+//   1. Just inherit from LinkListConstructor<T>
+struct ListNode : public LinkListConstructor<int> {
+    int val;
+    ListNode *next, *prev;
+    ListNode() : val(0), next(nullptr) {}
+    ListNode(int x) : val(x), next(nullptr) {}
+    ListNode(int x, ListNode *next) : val(x), next(next) {}
+
+    // 2. Define virtual methods of interface, to make constructor work
+    LL_DUAL(next, prev, val);
+};
+
+int size_of_list_list(ListNode* list) {
+    list->printList();
+    int i = 0;
+    while (list != nullptr) {
+        i++;
+        list = list->next;
+    }
+    return i;
+}
+
+
+int main() {
+    createSolutionTester(size_of_list_list, 0)
+            .addTestCase("[1,2,3,4]", 4)
+            .addTestCase("[1,2,3,4, 5]", 5)
+            .test();
+}
+```
+
+This output will be
+```
+====================================================
+Checking case #0
+----------------------------------------------------
+[1, 2, 3, 4, ] 
+----------------------------------------------------
+Value:     4
+Expected:  4
+----------------------------------------------------
+  Test case # 0: Passed
+====================================================
+Checking case #1
+----------------------------------------------------
+[1, 2, 3, 4, 5, ] 
+----------------------------------------------------
+Value:     5
+Expected:  5
+----------------------------------------------------
+  Test case # 1: Passed
+====================================================
+ TESTING COMPLETED: 2 total, 2 passed, 0 failed.
+
+```
 
 ## Usage
 
-### 1. DataLoader
+### 1. Using a DataLoader
 
 First, I introduce data loader.
 
@@ -69,18 +136,25 @@ struct ListNode : public LinkListConstructor<int> {
     ListNode(int x, ListNode *next) : val(x), next(next) {}
 
     // 2. Define virtual methods of interface, to make constructor work
-    LL_DEFINE_NEXT_PTR(next, ListNode)  // Define how to get next element
-    LL_DEFINE_PREV_PTR(prev, ListNode)  // Define how to get previous element
-    LL_DEFINE_VALUE(val, int)           // Define how to get value
+    LL_NEXT(next)  // Define how to get next element
+    LL_PREV(prev)  // Define how to get previous element
+    LL_VALUE(val)  // Define how to get value
+
+    // YOU can also use this
+    // LL_DUAL(next, prev, val)   // to define a dual link list
+    // LL_SINGLE(next, value)     // to define a single link list
 };
 
 int main() {
     DataLoader loader = "[1,2,3,4,5]"_dl;
-    // 3. Use asLinkedList series methods to construct Link List
+    // 3. Use DataLoader to load a linked list, just assign to it!
+    ListNode* L = loader;
+    //    By the way, we also provided serval methods, to contruct different types of linked list explictly!
     ListNode* L1 = loader.asLinkedList<ListNode>();
     ListNode* L2 = loader.asLoopLinkedList<ListNode>();
     ListNode* L3 = loader.asDualLinkedList<ListNode>();
-    ListNode* L4 = loader.asDualLoopLinkedList<ListNode>();
+    ListNode* L4 = loader.asLoopDualLinkedList<ListNode>();
+    ListNode* L5 = loader.asSingleOrDualLinkedList<ListNode>();
     L1->printList();
     L4->printReversedList();
 }
@@ -218,4 +292,3 @@ int main() {
             .test();
 }
 ```
-
