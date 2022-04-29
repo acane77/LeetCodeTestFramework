@@ -77,10 +77,10 @@ struct ListNode : public LinkListConstructor<int> {
 int main() {
     DataLoader loader = "[1,2,3,4,5]"_dl;
     // 3. Use asLinkedList series methods to construct Link List
-    ListNode* L1 = loader.asLinkedList<int, ListNode>();
-    ListNode* L2 = loader.asLoopLinkedList<int, ListNode>();
-    ListNode* L3 = loader.asDualLinkedList<int, ListNode>();
-    ListNode* L4 = loader.asDualLoopLinkedList<int, ListNode>();
+    ListNode* L1 = loader.asLinkedList<ListNode>();
+    ListNode* L2 = loader.asLoopLinkedList<ListNode>();
+    ListNode* L3 = loader.asDualLinkedList<ListNode>();
+    ListNode* L4 = loader.asDualLoopLinkedList<ListNode>();
     L1->printList();
     L4->printReversedList();
 }
