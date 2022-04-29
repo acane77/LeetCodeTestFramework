@@ -1445,7 +1445,8 @@ public:
     }\
     void setValue(valueType value) override {\
         valuePropName = value;\
-    }
+    }\
+    using value_type = valueType;
 
 // ================== Data Loader =================
 DEFINE_SHARED_PTR(DataResult);
@@ -1542,38 +1543,38 @@ public:
     template <class T>
     operator vector<vector<vector<T>>>() { return asNDArray<T, 3>(); }
 
-    template <class ValTy, class ContainerTy>
+    template <class ContainerTy>
     ContainerTy* asLinkedList() {
-        vector<ValTy> init = asArray<ValTy>();
-        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructLinkList<ContainerTy>(init);
+        vector<typename ContainerTy::value_type> init = asArray<typename ContainerTy::value_type>();
+        LinkListConstructor<typename ContainerTy::value_type>* llist = LinkListConstructor<typename ContainerTy::value_type>::template constructLinkList<ContainerTy>(init);
         return (ContainerTy*)llist;
     }
 
-    template <class ValTy, class ContainerTy>
+    template <class ContainerTy>
     ContainerTy* asDualLinkedList() {
-        vector<ValTy> init = asArray<ValTy>();
-        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructDualLinkList<ContainerTy>(init);
+        vector<typename ContainerTy::value_type> init = asArray<typename ContainerTy::value_type>();
+        LinkListConstructor<typename ContainerTy::value_type>* llist = LinkListConstructor<typename ContainerTy::value_type>::template constructDualLinkList<ContainerTy>(init);
         return (ContainerTy*)llist;
     }
 
-    template <class ValTy, class ContainerTy>
+    template <class ContainerTy>
     ContainerTy* asLoopLinkedList() {
-        vector<ValTy> init = asArray<ValTy>();
-        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructLoopLinkList<ContainerTy>(init);
+        vector<typename ContainerTy::value_type> init = asArray<typename ContainerTy::value_type>();
+        LinkListConstructor<typename ContainerTy::value_type>* llist = LinkListConstructor<typename ContainerTy::value_type>::template constructLoopLinkList<ContainerTy>(init);
         return (ContainerTy*)llist;
     }
 
-    template <class ValTy, class ContainerTy>
+    template <class ContainerTy>
     ContainerTy* asLoopDualLinkedList() {
-        vector<ValTy> init = asArray<ValTy>();
-        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template constructLoopDualLinkList<ContainerTy>(init);
+        vector<typename ContainerTy::value_type> init = asArray<typename ContainerTy::value_type>();
+        LinkListConstructor<typename ContainerTy::value_type>* llist = LinkListConstructor<typename ContainerTy::value_type>::template constructLoopDualLinkList<ContainerTy>(init);
         return (ContainerTy*)llist;
     }
 
-    template <class ValTy, class ContainerTy>
+    template <class ContainerTy>
     ContainerTy* asSingleOrDualLinkedList() {
-        vector<ValTy> init = asArray<ValTy>();
-        LinkListConstructor<ValTy>* llist = LinkListConstructor<ValTy>::template construct<ContainerTy>(init);
+        vector<typename ContainerTy::value_type> init = asArray<typename ContainerTy::value_type>();
+        LinkListConstructor<typename ContainerTy::value_type>* llist = LinkListConstructor<typename ContainerTy::value_type>::template construct<ContainerTy>(init);
         return (ContainerTy*)llist;
     }
 
@@ -1592,6 +1593,9 @@ public:
     operator string() { return asString(); }
     operator const char*() { return factorSym->stringLiteral ? factorSym->stringLiteral->value.c_str() : ""; }
     operator char*() { return (char*)this->operator const char *(); }
+
+    //template<class LinkListTy>
+    //std::enable_if
 };
 
 class NoSuchNameException : exception {
