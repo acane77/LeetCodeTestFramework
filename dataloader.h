@@ -1867,8 +1867,10 @@ typename std::enable_if_t< i >= 0, void>
 initialize_tuple_with_another(TupleTyDst& tuple, const TupleTySrc& another, DataLoader& loader) {
     auto another_v = std::get<i>(another);
     static_assert(is_same_v<decltype(another_v), const char*> || is_integral_v<decltype(another_v)>);
-    if constexpr(is_convertible_v<decltype(std::get<i>(tuple)), std::string>)
+    if constexpr(is_same_v<std::decay_t<decltype(std::get<i>(tuple))>, std::string>)
         std::get<i>(tuple) = string(loader[another_v]);
+    else if constexpr(is_convertible_v<decltype(std::get<i>(tuple)), const char*>)
+        std::get<i>(tuple) = (std::decay_t<decltype(std::get<i>(tuple))>)(loader[another_v]);
     else
         std::get<i>(tuple) = loader[another_v];
     initialize_tuple_with_another<i - 1>(tuple, another, loader);
@@ -1897,7 +1899,7 @@ struct decay_args_tuple<std::tuple<Args...>> {
 template <class AnswerTy, template<class> class Hash = std::hash>
 class EnhancedSoultionTester : protected SolutionTester {
     vector_helper_t<AnswerTy, 1> answers;
-    Hash<std::conditional_t<is_pointer_v<AnswerTy>,
+    Hash<std::conditional_t<is_pointer_v<AnswerTy> and not is_convertible_v<AnswerTy, const char*>,
             remove_pointer_t<AnswerTy>, AnswerTy>> answer_hash_func;
     template <class __T>
     using haser_type = Hash<__T>;
@@ -1931,7 +1933,8 @@ public:
         constexpr int max_index_of_indexes = sizeof...(IndexType) - 1;
         int index = 0;
 
-        constexpr bool returns_a_pointer = is_pointer_v<typename function_helper<FuncTy>::return_type>;
+        constexpr bool returns_a_pointer = is_pointer_v<typename function_helper<FuncTy>::return_type>
+                and not is_convertible_v<typename function_helper<FuncTy>::return_type, const char*>;
         using function_return_type =
                 std::conditional_t<returns_a_pointer,
                     remove_pointer_t<typename function_helper<FuncTy>::return_type>,
@@ -2010,7 +2013,7 @@ typename std::enable_if<!is_member_function_pointer_v<FuncTy> and
         , EnhancedTesterWrapper<FuncTy, IndexTy...>>::type
 createSolutionTester(FuncTy _func, IndexTy... idx) {
     using ret_type = typename function_helper<FuncTy>::return_type;
-    if constexpr(is_pointer_v<ret_type>)
+    if constexpr(is_pointer_v<ret_type> and not is_convertible_v<ret_type, const char*>)
         static_assert(requires (ret_type r) { std::hash<remove_pointer_t<ret_type>>{}(*r); } ,
                 "error: The return type is not comparable, since no `std::hash' specialization was provided for this return type.");
     return std::move(EnhancedTesterWrapper<FuncTy, IndexTy...>(_func, std::forward<IndexTy>(idx)...));
@@ -2052,12 +2055,22 @@ namespace std {
         }
     };
 
-    template<class T>
-    struct hash<LinkListConstructor<T>> {
-        size_t operator()(LinkListConstructor<T>& list) {
-            return 1;
+    template <>
+    struct hash<const char*> {
+        size_t operator()(const char* str) {
+            std::hash<char> hasher;
+            std::size_t seed = 0;
+            for (; *str; ++str) {
+                const std::size_t kMul = 0x9ddfea08eb382d69ULL;
+                std::size_t a = (hasher(*str)) * kMul;
+                seed += a;
+            }
+            return seed;
         }
     };
+
+    template <>
+    struct hash<char*> : public hash<const char*> { };
 }
 
 // sequence-dependent hash
