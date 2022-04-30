@@ -1189,17 +1189,43 @@ void ArraySymbol::printAST(int hierarchy) {
 // =============== AST Builder ===============
 #define SYMBOL_UNCHECKED
 
-#define SKIP_TO_SEMI_AND_END_THIS_SYMBOL  { skipUntil({ ';' }, SkipUntilSemi); return nullptr; }
-#define MATCH(x)  { if ( look->isNot(x) ) {\
+#define SKIP_TO_SEMI_AND_END_THIS_SYMBOL() \
+do {                                     \
+    skipUntil({ ';' }, SkipUntilSemi);   \
+    return nullptr;                      \
+} while(0)                               \
+
+#define MATCH(x) \
+do {             \
+    if ( look->isNot(x) ) {\
         diagError(#x " expected.", look);\
-        SKIP_TO_SEMI_AND_END_THIS_SYMBOL\
-    } else next(); }
-#define match_tag(x) { if ( look->isNot(Tag::x) ) {\
+        SKIP_TO_SEMI_AND_END_THIS_SYMBOL();\
+    } \
+    else next(); } \
+while (0)
+
+#define match_tag(x) \
+do {                 \
+    if ( look->isNot(Tag::x) ) {\
         diagError("'" #x "' expected.", look);\
-        SKIP_TO_SEMI_AND_END_THIS_SYMBOL\
-    } else next(); }
-#define REPORT_ERROR(msg) { diagError(msg, look); SKIP_TO_SEMI_AND_END_THIS_SYMBOL; }
-#define REPORT_ERROR_1(msg, skipTo) { diagError(msg, look); skipUntil(skipTo, SkipUntilSemi | KeepSpecifiedToken); return nullptr; }
+        SKIP_TO_SEMI_AND_END_THIS_SYMBOL();\
+    }                \
+    else next();     \
+} while(0)
+
+#define REPORT_ERROR(msg) \
+do {                      \
+    diagError(msg, look); \
+    SKIP_TO_SEMI_AND_END_THIS_SYMBOL(); \
+} while(0)
+
+#define REPORT_ERROR_AND_SKIP_TO(msg, skipTo) \
+do {                                \
+    diagError(msg, look);           \
+    skipUntil(skipTo, SkipUntilSemi | KeepSpecifiedToken); \
+    return nullptr;                 \
+} while(0)
+
 
 class ASTBuilder : public IParser {
 public:
@@ -1262,15 +1288,16 @@ FactorSymbolPtr ASTBuilder::factor() {
         TokenPtr tok = look; next();
         return make_shared<FactorSymbol>(static_pointer_cast<StringToken>(tok));
     }
-    if (look->is('[')) {
+    if (look->is('[') || look->is('{')) {
         next();
-        if (look->is(']')) {
+        if (look->is(']') || look->is(']')) {
             next();
             // empty array
             return make_shared<FactorSymbol>(make_shared<ArraySymbol>());
         }
         ArraySymbolPtr arr = array();
-        MATCH(']');
+        if (look->is(']') || look->is('}')) next();
+        else MATCH(']'); // for report error only
         return make_shared<FactorSymbol>(arr);
     }
     REPORT_ERROR("unexpected token");
@@ -1278,7 +1305,7 @@ FactorSymbolPtr ASTBuilder::factor() {
 
 ArraySymbolPtr ASTBuilder::array() {
     ArraySymbolPtr arraySym = make_shared<ArraySymbol>();
-    while (look->is(Tag::BaseFactor) || look->is('[')) {
+    while (look->is(Tag::BaseFactor) || look->is('[') || look->is('{')) {
         FactorSymbolPtr factorSym = factor();
         if (look->is(','))
             next();
