@@ -1416,9 +1416,11 @@ public:
         for (LinkListConstructor* curr = head;
             (curr != head || headAllow) && curr; curr = curr->getNextItem()) {
             headAllow = false;
-            cout << curr->getValue() << ", ";
+            cout << curr->getValue();
+            if (curr->getNextItem())
+                cout << ", ";
         }
-        cout << "] ";
+        cout << "]";
     }
     void printList() {
         printList(this);
@@ -1427,12 +1429,15 @@ public:
     static void printReversedList(LinkListConstructor* head) {
         head = head->getPreviousItem();
         bool headAllow = true;
+        cout << "[";
         for (LinkListConstructor* curr = head;
             (curr != head || headAllow) && curr; curr = curr->getPreviousItem()) {
             headAllow = false;
-            cout << curr->getValue() << ", ";
+            cout << curr->getValue();
+            if (curr->getPreviousItem())
+                cout << ", ";
         }
-        cout << endl;
+        cout << "]";
     }
     void printReversedList() {
         printReversedList(this);
@@ -1475,6 +1480,13 @@ public:
 
 #define LL_SINGLE_DEFAULT LL_SINGLE(next, val)
 #define LL_DUAL_DEFAULT   LL_DUAL(next, prev, val)
+
+template <class ContainerTy>
+typename std::enable_if<is_base_of_v<LinkListConstructor<typename ContainerTy::value_type>, ContainerTy>, std::ostream&>::type
+operator <<(std::ostream& os, ContainerTy* ty) {
+    ty->printList();
+    return os;
+}
 
 // ================== Data Loader =================
 DEFINE_SHARED_PTR(DataResult);
