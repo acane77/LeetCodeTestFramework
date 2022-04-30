@@ -1302,6 +1302,22 @@ public:
     DeclsSymbolPtr getAST() { return M_ASTRoot; }
 };
 
+/// ======== OVERLOADS for std::cout =============
+template <class ValTy>
+std::ostream& operator<< (std::ostream& os, const std::vector<ValTy>& vec) {
+    printf("[");
+    size_t _s = 0;
+    for (const ValTy& e : vec) {
+        os << e;
+        if (_s != vec.size() - 1) {
+            os << ", ";
+        }
+        _s++;
+    }
+    printf("]");
+    return os;
+}
+
 // =============== Link List Helper ===============
 template <class ValTy>
 class LinkListConstructor {
@@ -1981,6 +1997,7 @@ struct seq_dependent_container_hash<vector<T>> {
         return seed;
     }
 };
+
 
 #endif //DP_DATALOADER_H
 
