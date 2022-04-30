@@ -39,6 +39,13 @@
 #include <unistd.h>
 #endif
 
+#ifndef __cplusplus
+#error This is a C++ header
+#endif
+#if __cplusplus / 100 < 2020
+#error This library requires C++20 or newer standard, please compile with `-std=c++20` option
+#endif
+
 using namespace std;
 
 // ===============      Defines     =====================
@@ -1523,17 +1530,29 @@ protected:
 public:
 #define DEFINE_OPERATORS(op, baseFunc) operator op() { return as##baseFunc<op>(); }
     template <class T = int64_t>
-    T asInt() { return (T)(factorSym->integer ? factorSym->integer->toInt() : (factorSym->floating ? factorSym->floating->toInt() : 0)); }
+    T asInt() {
+        if (!factorSym->integer && !factorSym->floating && !factorSym->character) {
+            throw runtime_error("The chosen data cannot represent an integer.");
+        }
+        return (T)(factorSym->integer ? factorSym->integer->toInt() :
+                    (factorSym->floating ? factorSym->floating->toInt() :
+                        factorSym->character->toInt()));
+    }
 #define INT_OPERATORS(x) DEFINE_OPERATORS(x, Int)
     INT_OPERATORS(int8_t)    INT_OPERATORS(uint8_t)
         INT_OPERATORS(int16_t)    INT_OPERATORS(uint16_t)
         INT_OPERATORS(int32_t)    INT_OPERATORS(uint32_t)
         INT_OPERATORS(int64_t)    INT_OPERATORS(uint64_t)
 
-        template <class T = double>
-    T asFloat() { return (T)(factorSym->integer ? factorSym->integer->toFloat() : (factorSym->floating ? factorSym->floating->toFloat() : 0)); }
+    template <class T = double>
+    T asFloat() {
+        if (!factorSym->integer && !factorSym->floating) {
+            throw runtime_error("The chosen data cannot represent a float-pointing.");
+        }
+        return (T)(factorSym->integer ? factorSym->integer->toFloat() : (factorSym->floating ? factorSym->floating->toFloat() : 0));
+    }
     DEFINE_OPERATORS(float, Float)
-        DEFINE_OPERATORS(double, Float)
+    DEFINE_OPERATORS(double, Float)
 
         template <class T, int N>
     typename std::enable_if_t<N == 1, typename vector_helper<T, 1>::value_type> asNDArray() {
@@ -1880,6 +1899,8 @@ class EnhancedSoultionTester : protected SolutionTester {
     vector_helper_t<AnswerTy, 1> answers;
     Hash<std::conditional_t<is_pointer_v<AnswerTy>,
             remove_pointer_t<AnswerTy>, AnswerTy>> answer_hash_func;
+    template <class __T>
+    using haser_type = Hash<__T>;
 public:
     void addTestCase(string case_, AnswerTy answer_) {
         SolutionTester::addTestCase(case_);
@@ -1988,6 +2009,10 @@ typename std::enable_if<!is_member_function_pointer_v<FuncTy> and
                         std::tuple_size<typename function_helper<FuncTy>::arguments>::value == sizeof...(IndexTy)
         , EnhancedTesterWrapper<FuncTy, IndexTy...>>::type
 createSolutionTester(FuncTy _func, IndexTy... idx) {
+    using ret_type = typename function_helper<FuncTy>::return_type;
+    if constexpr(is_pointer_v<ret_type>)
+        static_assert(requires (ret_type r) { std::hash<remove_pointer_t<ret_type>>{}(*r); } ,
+                "error: The return type is not comparable, since no `std::hash' specialization was provided for this return type.");
     return std::move(EnhancedTesterWrapper<FuncTy, IndexTy...>(_func, std::forward<IndexTy>(idx)...));
 }
 
