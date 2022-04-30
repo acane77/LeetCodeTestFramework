@@ -1971,11 +1971,30 @@ public:
         SolutionTester::setCheckFn([&](DataLoader loader) -> bool {
             initialize_tuple_with_another<max_index_of_indexes>(params, forward_as_tuple(arg_indexes...), loader);
             function_return_type_opt ret_value_opt = nullopt;
-            if constexpr(returns_a_pointer)
-                ret_value_opt = std::move(*std::apply(func, params));
+            if constexpr(returns_a_pointer) {
+                auto rtv = std::apply(func, params);
+                if (rtv != nullptr && answers[index] != nullptr) {
+                    // the function returns a non-null pointer
+                    // and also expected a null pointer
+                    ret_value_opt = std::move(*rtv);
+                }
+                else {
+                    // one of value and expected is a null pointer
+                    bool is_passed = answers[index] == rtv;
+                    constexpr int is_printable = requires (const function_return_type& t) { std::cout << t; };
+                    if constexpr(is_printable) {
+                        printSpliter('-', true);
+                        if (rtv == nullptr)  cout << "Value:     " << "<nullptr>" << endl;
+                        else                 cout << "Value:     " << *rtv << endl;
+                        if (answers[index] == nullptr)  cout << "Expected:  " << "<nullptr>";
+                        else                            cout << "Expected:  " << *answers[index];
+                    }
+                    index++;
+                    return is_passed;
+                }
+            }
             else
                 ret_value_opt = std::apply(func, params);
-            // TODO: check nullptr here
             function_return_type ret_value = *ret_value_opt;
             static_assert(is_same_v<decltype(answer_hash_func), hash<decltype(ret_value)>>);
             function_return_type_opt answer_opt = nullopt;
@@ -1989,7 +2008,7 @@ public:
             if constexpr(is_printable) {
                 printSpliter('-', true);
                 cout << "Value:     " << ret_value << endl;
-                cout << "Expected:  " << answers[index-1];
+                cout << "Expected:  " << answer;
             }
             return is_passed;
         });
