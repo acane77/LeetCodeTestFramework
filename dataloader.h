@@ -2010,6 +2010,7 @@ struct seq_dependent_container_hash<vector<T>> {
     }
 };
 
+#define RAW(x) #x
 
 #endif //DP_DATALOADER_H
 
