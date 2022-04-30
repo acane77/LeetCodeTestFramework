@@ -30,6 +30,8 @@
 #include <sstream>
 #include <functional>
 #include <cassert>
+#include <optional>
+#include <type_traits>
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -1488,6 +1490,16 @@ operator <<(std::ostream& os, ContainerTy* ty) {
     return os;
 }
 
+template <class ContainerTy>
+typename std::enable_if<is_base_of_v<LinkListConstructor<typename ContainerTy::value_type>, ContainerTy>, std::ostream&>::type
+operator <<(std::ostream& os, ContainerTy ty) {
+    ty.printList();
+    return os;
+}
+
+template <class T>
+using enable_auto_construct_from_value_type = LinkListConstructor<T>;
+
 // ================== Data Loader =================
 DEFINE_SHARED_PTR(DataResult);
 DEFINE_SHARED_PTR(DataLoader);
@@ -1866,7 +1878,8 @@ struct decay_args_tuple<std::tuple<Args...>> {
 template <class AnswerTy, template<class> class Hash = std::hash>
 class EnhancedSoultionTester : protected SolutionTester {
     vector_helper_t<AnswerTy, 1> answers;
-    Hash<AnswerTy> answer_hash_func;
+    Hash<std::conditional_t<is_pointer_v<AnswerTy>,
+            remove_pointer_t<AnswerTy>, AnswerTy>> answer_hash_func;
 public:
     void addTestCase(string case_, AnswerTy answer_) {
         SolutionTester::addTestCase(case_);
@@ -1893,15 +1906,34 @@ public:
         and not is_member_function_pointer_v<FuncTy>, void>::type
         test(FuncTy func, IndexType... arg_indexes) {
         using function_args_tuple = typename function_helper<FuncTy>::arguments;
-        using function_return_type = typename function_helper<FuncTy>::return_type;
         typename decay_args_tuple<function_args_tuple>::type params;
         constexpr int max_index_of_indexes = sizeof...(IndexType) - 1;
         int index = 0;
 
+        constexpr bool returns_a_pointer = is_pointer_v<typename function_helper<FuncTy>::return_type>;
+        using function_return_type =
+                std::conditional_t<returns_a_pointer,
+                    remove_pointer_t<typename function_helper<FuncTy>::return_type>,
+                    typename function_helper<FuncTy>::return_type>;
+        using function_return_type_opt = std::optional<function_return_type>;
+
         SolutionTester::setCheckFn([&](DataLoader loader) -> bool {
             initialize_tuple_with_another<max_index_of_indexes>(params, forward_as_tuple(arg_indexes...), loader);
-            function_return_type ret_value = std::apply(func, params);
-            bool is_passed = answer_hash_func(ret_value) == answer_hash_func(answers[index++]);
+            function_return_type_opt ret_value_opt = nullopt;
+            if constexpr(returns_a_pointer)
+                ret_value_opt = std::move(*std::apply(func, params));
+            else
+                ret_value_opt = std::apply(func, params);
+            // TODO: check nullptr here
+            function_return_type ret_value = *ret_value_opt;
+            static_assert(is_same_v<decltype(answer_hash_func), hash<decltype(ret_value)>>);
+            function_return_type_opt answer_opt = nullopt;
+            if constexpr(returns_a_pointer)
+                answer_opt = std::move(*answers[index++]);
+            else
+                answer_opt = answers[index++];
+            function_return_type answer = *answer_opt;
+            bool is_passed = answer_hash_func(ret_value) == answer_hash_func(answer);
             constexpr int is_printable = requires (const function_return_type& t) { std::cout << t; };
             if constexpr(is_printable) {
                 printSpliter('-', true);
@@ -1994,6 +2026,13 @@ namespace std {
             return seed;
         }
     };
+
+    template<class T>
+    struct hash<LinkListConstructor<T>> {
+        size_t operator()(LinkListConstructor<T>& list) {
+            return 1;
+        }
+    };
 }
 
 // sequence-dependent hash
@@ -2010,7 +2049,10 @@ struct seq_dependent_container_hash<vector<T>> {
     }
 };
 
-#define RAW(x) #x
+// ====== Some macros ======
+
+#define RAW(...) #__VA_ARGS__
+#define RAWDL(...) #__VA_ARGS__##_dl
 
 #endif //DP_DATALOADER_H
 
