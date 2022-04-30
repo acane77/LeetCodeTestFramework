@@ -2049,6 +2049,22 @@ struct seq_dependent_container_hash<vector<T>> {
     }
 };
 
+/// If you want to compare with Link Lists, you should use this macro
+#define MAKE_LL_COMPARABLE(ListNode) \
+namespace std {\
+    template <>\
+    struct hash<ListNode> {\
+        size_t operator()(ListNode list) {\
+            std::hash<ListNode::value_type> hasher;\
+            std::size_t seed = 0;\
+            for (ListNode* l = &list; l != nullptr; l=(ListNode*)l->getNextItem()) {\
+                dp_hash_combine(seed, l->getValue());\
+            }\
+            return seed;\
+        }\
+    };\
+}
+
 // ====== Some macros ======
 
 #define RAW(...) #__VA_ARGS__
