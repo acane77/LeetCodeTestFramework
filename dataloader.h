@@ -2132,8 +2132,10 @@ namespace std {\
 
 // ====== Some macros ======
 
+#if !defined(NO_EXPORT_MACROS) or NO_EXPORT_MACROS == 0
 #define RAW(...) #__VA_ARGS__
 #define RAWDL(...) #__VA_ARGS__##_dl
+#endif // !defined(NO_EXPORT_MACROS) or NO_EXPORT_MACROS == 0
 
 #endif //DP_DATALOADER_H
 
