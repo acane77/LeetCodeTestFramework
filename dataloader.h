@@ -1559,7 +1559,7 @@ public:
     template <class T = int64_t>
     T asInt() {
         if (!factorSym->integer && !factorSym->floating && !factorSym->character) {
-            throw runtime_error("The chosen data cannot represent an integer.");
+            throw runtime_error("The given data cannot represent an integer.");
         }
         return (T)(factorSym->integer ? factorSym->integer->toInt() :
                     (factorSym->floating ? factorSym->floating->toInt() :
@@ -1574,7 +1574,7 @@ public:
     template <class T = double>
     T asFloat() {
         if (!factorSym->integer && !factorSym->floating) {
-            throw runtime_error("The chosen data cannot represent a float-pointing.");
+            throw runtime_error("The given data cannot represent a float-pointing.");
         }
         return (T)(factorSym->integer ? factorSym->integer->toFloat() : (factorSym->floating ? factorSym->floating->toFloat() : 0));
     }
@@ -1825,14 +1825,16 @@ protected:
         cout << endl;
     }
 public:
-    void addTestCase(string case_) {
+    bool addTestCase(string case_) {
         DataLoader loader;
         try {
             loader.load(case_);
             loaders.push_back(move(loader));
+            return true;
         }
-        catch (exception e) {
+        catch (const exception& e) {
             cout << "Error while loading test case: " << e.what() << endl;
+            return false;
         }
     }
     void setCheckFn(function<bool(DataLoader& loader)> _checkFn) {
@@ -1945,8 +1947,8 @@ class EnhancedSoultionTester : protected SolutionTester {
     using haser_type = Hash<__T>;
 public:
     void addTestCase(string case_, AnswerTy answer_) {
-        SolutionTester::addTestCase(case_);
-        answers.push_back(answer_);
+        if (SolutionTester::addTestCase(case_))
+            answers.push_back(answer_);
     }
 
     void addTestCase(const DataLoader& case_, AnswerTy answer_) {
@@ -1982,7 +1984,13 @@ public:
         using function_return_type_opt = std::optional<function_return_type>;
 
         SolutionTester::setCheckFn([&](DataLoader loader) -> bool {
-            initialize_tuple_with_another<max_index_of_indexes>(params, forward_as_tuple(arg_indexes...), loader);
+            try {
+                initialize_tuple_with_another<max_index_of_indexes>(params, forward_as_tuple(arg_indexes...), loader);
+            }
+            catch (const std::runtime_error& err) {
+                cout << " ** An error occurred while running this test case **\n  reason is: " << err.what();
+                return false;
+            }
             function_return_type_opt ret_value_opt = nullopt;
             if constexpr(returns_a_pointer) {
                 auto rtv = std::apply(func, params);
@@ -2053,7 +2061,13 @@ public:
 
     template <class... Args>
     EnhancedTesterWrapper<FuncTy, IndexTy...>& addTestCase(Args... args) {
-        ST.addTestCase(std::forward<Args>(args)...);
+        try {
+            ST.addTestCase(std::forward<Args>(args)...);
+        }
+        catch (const std::runtime_error& err) {
+            cout << " ** error: Cannot add this test case due to an error. ** " << endl
+                 << err.what() << endl << "\n";
+        }
         return *this;
     }
 
