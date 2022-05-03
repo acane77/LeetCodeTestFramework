@@ -2034,7 +2034,7 @@ public:
             }
             catch (const std::runtime_error& err) {
                 loader.parser->reportError(cout);
-                cout << "fatal: An error occurred while parsing input of this test case.\n";
+                cout << "fatal: An error occurred while parsing input of this test case.";
                 return false;
             }
             function_return_type_opt ret_value_opt = nullopt;
