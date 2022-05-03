@@ -1481,18 +1481,18 @@ public:
 };
 
 #define LL_NEXT(nextPropName) \
-    LinkListConstructor<int> * getNextItem() override {\
+    LinkListConstructor* getNextItem() override {\
         return nextPropName;\
     }                                          \
-    void setNextItem(LinkListConstructor<int> *_next) override {\
+    void setNextItem(LinkListConstructor *_next) override {\
         nextPropName = (std::decay_t<decltype(*this)>*)_next;\
     }
 
 #define LL_PREV(prevPropName) \
-    LinkListConstructor<int> * getPreviousItem() override {\
+    LinkListConstructor* getPreviousItem() override {\
         return prevPropName;\
     }                                          \
-    void setPreviousItem(LinkListConstructor<int> *_prev) override {\
+    void setPreviousItem(LinkListConstructor *_prev) override {\
         prevPropName = (std::decay_t<decltype(*this)>*)_prev;\
     }
 
