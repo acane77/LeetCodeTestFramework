@@ -1538,18 +1538,18 @@ using enable_auto_construct_from_value_type = LinkListConstructor<T>;
 DEFINE_SHARED_PTR(DataResult);
 DEFINE_SHARED_PTR(DataLoader);
 
-template <class T, int N>
-struct vector_helper {
-    using value_type = vector<typename vector_helper<T, N - 1>::value_type>;
+template <class T, int N, template <class Ty, class Allocator = std::allocator<Ty>> class Container>
+struct nested_container_helper {
+    using value_type = Container<typename nested_container_helper<T, N - 1, Container>::value_type>;
 };
 
-template <class T>
-struct vector_helper<T, 1> {
-    using value_type = vector<T>;
+template <class T, template <class Ty, class Allocator = std::allocator<Ty>> class Container>
+struct nested_container_helper<T, 1, Container> {
+    using value_type = Container<T>;
 };
 
-template <class T, int N>
-using vector_helper_t = typename vector_helper<T, N>::value_type;
+template <class T, int N, template <class Ty, class Allocator> class Container = std::vector>
+using nested_container_helper_t = typename nested_container_helper<T, N, Container>::value_type;
 
 class DataResult {
 protected:
@@ -1581,15 +1581,15 @@ public:
     DEFINE_OPERATORS(float, Float)
     DEFINE_OPERATORS(double, Float)
 
-        template <class T, int N>
-    typename std::enable_if_t<N == 1, typename vector_helper<T, 1>::value_type> asNDArray() {
-        typename vector_helper<T, 1>::value_type vec = asArray<T>();
+    template <class T, int N, template<class, class> class Container = std::vector>
+    typename std::enable_if_t<N == 1, typename nested_container_helper<T, 1, Container>::value_type> asNDArray() {
+        typename nested_container_helper<T, 1, Container>::value_type vec = asArray<T>();
         return vec;
     }
 
-    template <class T, int N>
-    typename std::enable_if_t<N != 1, typename vector_helper<T, N>::value_type> asNDArray() {
-        typename vector_helper<T, N>::value_type vec;
+    template <class T, int N, template<class, class> class Container = std::vector>
+    typename std::enable_if_t<N != 1, typename nested_container_helper<T, N, Container>::value_type> asNDArray() {
+        typename nested_container_helper<T, N, Container>::value_type vec;
         if (!factorSym->array) return vec;
         for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
             DataResult dr; dr.factorSym = fact;
@@ -1599,9 +1599,9 @@ public:
         return vec;
     }
 
-    template <class T>
-    vector<T> asArray() {
-        vector<T> vec;
+    template <class T, template<class Tp, class Al = std::allocator<Tp>> class Container = std::vector>
+    Container<T> asArray() {
+        Container<T> vec;
         if (!factorSym->array)
             throw runtime_error("Object is not an array");
         for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
@@ -1620,20 +1620,20 @@ public:
         return vec;
     }
 
-    template <class T>
-    typename vector_helper<T, 2>::value_type as2DArray() { return asNDArray<T, 2>(); }
+    template <class T, template<class, class> class Container = std::vector>
+    typename nested_container_helper<T, 2, Container>::value_type as2DArray() { return asNDArray<T, 2, Container>(); }
 
-    template <class T>
-    typename vector_helper<T, 3>::value_type as3DArray() { return asNDArray<T, 3>(); }
+    template <class T, template<class, class> class Container = std::vector>
+    typename nested_container_helper<T, 3, Container>::value_type as3DArray() { return asNDArray<T, 3, Container>(); }
 
-    template <class T>
-    operator vector<T>() { return asArray<T>(); }
+    template <class T, template<class, class> class Container = std::vector>
+    operator Container<T, std::allocator<T>>() { return asArray<T, Container>(); }
 
-    template <class T>
-    operator vector<vector<T>>() { return asNDArray<T, 2>(); }
+    template <class T, template<class Tp, class Al = std::allocator<Tp>> class Container = std::vector>
+    operator Container<Container<T>>() { return asNDArray<T, 2, Container>(); }
 
-    template <class T>
-    operator vector<vector<vector<T>>>() { return asNDArray<T, 3>(); }
+    template <class T, template<class Tp, class Al = std::allocator<Tp>> class Container = std::vector>
+    operator Container<Container<Container<T>>>() { return asNDArray<T, 3, Container>(); }
 
     template <class ContainerTy>
     ContainerTy* asLinkedList() {
@@ -1925,7 +1925,7 @@ struct decay_args_tuple<std::tuple<Args...>> {
 
 template <class AnswerTy, template<class> class Hash = std::hash>
 class EnhancedSoultionTester : protected SolutionTester {
-    vector_helper_t<AnswerTy, 1> answers;
+    nested_container_helper_t<AnswerTy, 1> answers;
     Hash<std::conditional_t<is_pointer_v<AnswerTy> and not is_convertible_v<AnswerTy, const char*>,
             remove_pointer_t<AnswerTy>, AnswerTy>> answer_hash_func;
     template <class __T>
