@@ -1558,6 +1558,12 @@ struct nested_container_helper<T, 1, Container> {
 template <class T, int N, template <class Ty, class Allocator> class Container = std::vector>
 using nested_container_helper_t = typename nested_container_helper<T, N, Container>::value_type;
 
+class DataResultTypeError : public std::runtime_error {
+public:
+    DataResult* result = nullptr;
+    DataResultTypeError(const char* msg, DataResult* result) : std::runtime_error(msg), result(result) { }
+};
+
 class DataResult {
 protected:
     FactorSymbolPtr factorSym = nullptr;
@@ -1816,7 +1822,7 @@ void DataResult::reportRuntimeError(const char *msg, TokenPtr tok) {
     Parser* p = getParser();
     if (p)
          p->diagError(string(msg), tok);
-    throw runtime_error(msg);
+    throw DataResultTypeError(msg, this);
 }
 
 Parser* DataResult::getParser() {
@@ -2098,6 +2104,10 @@ public:
     EnhancedTesterWrapper<FuncTy, IndexTy...>& addTestCase(Args... args) {
         try {
             ST.addTestCase(std::forward<Args>(args)...);
+        }
+        catch (const DataResultTypeError& err) {
+            err.result->getParser()->reportError(cout);
+            cout << " ** error: Cannot add this test case due to an error. ** " << endl;
         }
         catch (const std::runtime_error& err) {
             cout << " ** error: Cannot add this test case due to an error. ** " << endl;
