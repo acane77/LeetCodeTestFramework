@@ -1339,8 +1339,8 @@ public:
 };
 
 /// ======== OVERLOADS for std::cout =============
-template <class ValTy>
-std::ostream& operator<< (std::ostream& os, const std::vector<ValTy>& vec) {
+template <class ValTy, template <class Tp, class Al = std::allocator<Tp>> class Container>
+std::ostream& operator<< (std::ostream& os, const Container<ValTy>& vec) {
     printf("[");
     size_t _s = 0;
     for (const ValTy& e : vec) {
@@ -1606,15 +1606,19 @@ public:
             throw runtime_error("Object is not an array");
         for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
             DataResult dr; dr.factorSym = fact;
-            if (fact->array) continue; // Do not support nested array
-
+            if (fact->array)  // Do not support nested array
+                throw runtime_error("This conversion does not support an array");
             // special process for string
             if constexpr(is_same_v<T, string> or is_same_v<T, const char*> or is_same_v<T, char*>)
                 vec.push_back(dr.operator T());
+            else if constexpr(is_same_v<T, char> or is_same_v<T, unsigned char>) {
+                vec.push_back((int8_t) dr);
+            }
+            else if constexpr(is_convertible_v<T, uint64_t> or is_convertible_v<T, int64_t>) {
+                vec.push_back((T) dr);
+            }
             else {
-                if (fact->integer) vec.push_back((T) dr);
-                else if (fact->floating) vec.push_back((T) dr);
-                else if (fact->character) vec.push_back((int8_t) dr);
+                vec.push_back((T) dr);
             }
         }
         return vec;
@@ -1679,8 +1683,17 @@ public:
 
     friend class DataLoader;
 
-    string asString() { return factorSym->stringLiteral ? factorSym->stringLiteral->value : ""; }
-    char asChar() { return factorSym->character ? factorSym->character->value : 0; }
+    string asString() {
+        if (factorSym->stringLiteral) return factorSym->stringLiteral->value;
+        else throw runtime_error("The choosen data cannot convert to strings");
+    }
+    char asChar() {
+        if (factorSym->character) return factorSym->character->value;
+        else if (factorSym->integer) return factorSym->integer->value;
+        else if (factorSym->floating) return (int8_t) factorSym->floating->value;
+        else if (factorSym->stringLiteral) return factorSym->stringLiteral->value.c_str()[0];
+        else throw runtime_error("The choosen data cannot convert to characters");
+    }
 
     operator string() { return asString(); }
     operator const char*() { return factorSym->stringLiteral ? factorSym->stringLiteral->value.c_str() : ""; }
