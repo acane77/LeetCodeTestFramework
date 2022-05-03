@@ -966,6 +966,10 @@ reget_token:
             goto reget_token;
         }
         //cout << " -- GET TOKEN FROM STREAM: " << look->toString() << endl;
+        // make some check to tokens
+        if (look->is(Tag::Character) && dynamic_pointer_cast<CharToken>(look)->charseq.size() > 1) {
+            diagWarning("detected a multi-byte character, are you desiring to use a string instead?", look);
+        }
         return look;
     }
     else if (m_tsptr_r < m_tsptr_w) {
@@ -988,7 +992,7 @@ void IParser::reportError(std::ostream& os) {
         TokenPtr tok = e.getToken();
         if (!tok) {
             cout << "<Unknown source>\n^~~~~~~~~~~~~~~~\n";
-            os << "<unknown location>: " << e.what() << endl << endl;
+            os << "<unknown location>: " << (e.isWarning() ? "warning" : "error") << ": " <<  e.what() << endl << endl;
             continue;
         }
         string s = M_lex->getSourceManager()->getLine(tok->row);
@@ -1008,7 +1012,8 @@ void IParser::reportError(std::ostream& os) {
             else os << '~';
         }
         os << endl;
-        os << tok->filenam << ":" << tok->row << ":" << tok->column << ": " << e.what() << endl << endl;
+        os << tok->filenam << ":" << tok->row << ":" << tok->column << ": " << (e.isWarning() ? "warning" : "error") << ": "
+            << e.what() << endl << endl;
     }
 }
 
