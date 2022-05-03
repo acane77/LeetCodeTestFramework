@@ -919,11 +919,11 @@ public:
     virtual bool skipUntil(const deque<int32_t>& toks, uint32_t flag);
 
     // add error statement prepare for output
-    inline void diagError(string&& errmsg, TokenPtr ptr) { errors.push_back(ParseError(errmsg, ptr, false)); errorCount++; }
+    inline void diagError(string&& errmsg, TokenPtr ptr) { errors.emplace_back(ParseError(errmsg, ptr, false)); errorCount++; }
 
     // add warning statement prepare for output
     // warning information can be disabled by flag
-    inline void diagWarning(string&& errmsg, TokenPtr ptr) { errors.push_back(ParseError(errmsg, ptr, true)); }
+    inline void diagWarning(string&& errmsg, TokenPtr ptr) { errors.emplace_back(ParseError(errmsg, ptr, true)); }
 
     ////// parser state //////
     // called when parse done
@@ -934,6 +934,9 @@ public:
 
     // parse source file
     virtual void parse() = 0;
+
+    // clean error list
+    void cleanErrors() { errors.clear(); errorCount = 0; }
 };
 
 void IParser::match(uint32_t term, string&& errmsg, TokenPtr& ptr) {
@@ -1122,6 +1125,16 @@ public:
     virtual void printAST(int hierarchy);
 };
 
+class ArraySymbol : public Symbol {
+public:
+    deque<FactorSymbolPtr> arrayItems;
+    TokenPtr tok = nullptr;
+
+    explicit ArraySymbol(TokenPtr toklb): tok(std::move(toklb)) { }
+    virtual int getKind() { return Kind::arrayKind; }
+    virtual void printAST(int hierarchy);
+};
+
 class FactorSymbol : public Symbol {
 public:
     IntTokenPtr integer = nullptr;
@@ -1129,25 +1142,18 @@ public:
     CharTokenPtr character = nullptr;
     StringTokenPtr stringLiteral = nullptr;
     ArraySymbolPtr array = nullptr;
+    TokenPtr tok = nullptr;
 
     enum FactorType { INT = 0, FLOAT, CHAR, STRING, ARRAY };
     int factorType = 0;
 
-    explicit FactorSymbol(IntTokenPtr i) : factorType(FactorType::INT), integer(i) { }
-    explicit FactorSymbol(FloatTokenPtr f) : factorType(FactorType::FLOAT), floating(f) { }
-    explicit FactorSymbol(CharTokenPtr c) : factorType(FactorType::CHAR), character(c) { }
-    explicit FactorSymbol(StringTokenPtr s) : factorType(FactorType::STRING), stringLiteral(s) { }
-    explicit FactorSymbol(ArraySymbolPtr a) : factorType(FactorType::ARRAY), array(a) { }
+    explicit FactorSymbol(IntTokenPtr i) : factorType(FactorType::INT), integer(i), tok(i) { }
+    explicit FactorSymbol(FloatTokenPtr f) : factorType(FactorType::FLOAT), floating(f), tok(f) { }
+    explicit FactorSymbol(CharTokenPtr c) : factorType(FactorType::CHAR), character(c), tok(c) { }
+    explicit FactorSymbol(StringTokenPtr s) : factorType(FactorType::STRING), stringLiteral(s), tok(s) { }
+    explicit FactorSymbol(ArraySymbolPtr a) : factorType(FactorType::ARRAY), tok(a->tok), array(a) {  }
 
     virtual int getKind() { return Kind::factor; }
-    virtual void printAST(int hierarchy);
-};
-
-class ArraySymbol : public Symbol {
-public:
-    deque<FactorSymbolPtr> arrayItems;
-
-    virtual int getKind() { return Kind::arrayKind; }
     virtual void printAST(int hierarchy);
 };
 
@@ -1289,11 +1295,12 @@ FactorSymbolPtr ASTBuilder::factor() {
         return make_shared<FactorSymbol>(static_pointer_cast<StringToken>(tok));
     }
     if (look->is('[') || look->is('{')) {
+        TokenPtr tok_lb = look;
         next();
         if (look->is(']') || look->is(']')) {
             next();
             // empty array
-            return make_shared<FactorSymbol>(make_shared<ArraySymbol>());
+            return make_shared<FactorSymbol>(make_shared<ArraySymbol>(tok_lb));
         }
         ArraySymbolPtr arr = array();
         if (look->is(']') || look->is('}')) next();
@@ -1304,7 +1311,7 @@ FactorSymbolPtr ASTBuilder::factor() {
 }
 
 ArraySymbolPtr ASTBuilder::array() {
-    ArraySymbolPtr arraySym = make_shared<ArraySymbol>();
+    ArraySymbolPtr arraySym = make_shared<ArraySymbol>(tokens[m_tsptr_r-1]);
     while (look->is(Tag::BaseFactor) || look->is('[') || look->is('{')) {
         FactorSymbolPtr factorSym = factor();
         if (look->is(','))
@@ -1554,12 +1561,14 @@ using nested_container_helper_t = typename nested_container_helper<T, N, Contain
 class DataResult {
 protected:
     FactorSymbolPtr factorSym = nullptr;
+    DataLoader* parentDataloader = nullptr;
 public:
+    virtual Parser* getParser();
 #define DEFINE_OPERATORS(op, baseFunc) operator op() { return as##baseFunc<op>(); }
     template <class T = int64_t>
     T asInt() {
         if (!factorSym->integer && !factorSym->floating && !factorSym->character) {
-            throw runtime_error("The given data cannot represent an integer.");
+            reportRuntimeError("The given data cannot represent an integer.", factorSym->tok);
         }
         return (T)(factorSym->integer ? factorSym->integer->toInt() :
                     (factorSym->floating ? factorSym->floating->toInt() :
@@ -1574,7 +1583,7 @@ public:
     template <class T = double>
     T asFloat() {
         if (!factorSym->integer && !factorSym->floating) {
-            throw runtime_error("The given data cannot represent a float-pointing.");
+            reportRuntimeError("The given data cannot represent a float-pointing.", factorSym->tok);
         }
         return (T)(factorSym->integer ? factorSym->integer->toFloat() : (factorSym->floating ? factorSym->floating->toFloat() : 0));
     }
@@ -1603,11 +1612,11 @@ public:
     Container<T> asArray() {
         Container<T> vec;
         if (!factorSym->array)
-            throw runtime_error("Object is not an array");
+            reportRuntimeError("Object is not an array", factorSym->tok);
         for (FactorSymbolPtr fact : factorSym->array->arrayItems) {
             DataResult dr; dr.factorSym = fact;
             if (fact->array)  // Do not support nested array
-                throw runtime_error("This conversion does not support an array");
+                reportRuntimeError("This conversion does not support an array", factorSym->tok);
             // special process for string
             if constexpr(is_same_v<T, string> or is_same_v<T, const char*> or is_same_v<T, char*>)
                 vec.push_back(dr.operator T());
@@ -1676,7 +1685,7 @@ public:
 
     DataResult operator[](int idx) {
         if (!factorSym->array)
-            throw runtime_error("Object is not subscriptable");
+            reportRuntimeError("Object is not subscriptable", factorSym->tok);
         DataResult dr; dr.factorSym = factorSym->array->arrayItems[idx];
         return move(dr);
     }
@@ -1685,14 +1694,16 @@ public:
 
     string asString() {
         if (factorSym->stringLiteral) return factorSym->stringLiteral->value;
-        else throw runtime_error("The choosen data cannot convert to strings");
+        else reportRuntimeError("The choosen data cannot convert to strings", factorSym->tok);
+        return "";
     }
     char asChar() {
         if (factorSym->character) return factorSym->character->value;
         else if (factorSym->integer) return factorSym->integer->value;
         else if (factorSym->floating) return (int8_t) factorSym->floating->value;
         else if (factorSym->stringLiteral) return factorSym->stringLiteral->value.c_str()[0];
-        else throw runtime_error("The choosen data cannot convert to characters");
+        else reportRuntimeError("The choosen data cannot convert to characters", factorSym->tok);
+        return 0;
     }
 
     operator string() { return asString(); }
@@ -1703,6 +1714,8 @@ public:
     operator LinkListTy* () {
         return asSingleOrDualLinkedList<LinkListTy>();
     }
+
+    void reportRuntimeError(const char *msg, TokenPtr tok);
 };
 
 class NoSuchNameException : exception {
@@ -1715,23 +1728,26 @@ public:
 class DataLoader : public DataResult {
     DeclsSymbolPtr AST;
 public:
-    DataLoader() { }
+    Parser* parser = nullptr;
+    DataLoader() {  }
     bool load(string str) {
+        //if (parser)  delete parser;
         AST = nullptr;
         stringstream ss;
         ss << str;
-        Parser parser(ss);
+        parser = new Parser(ss);
         try {
-            parser.parse();
-            parser.parseDone();
-            AST = parser.getAST();
+            parser->parse();
+            parser->parseDone();
+            AST = parser->getAST();
             if (AST->decls.size() > 0)
                 factorSym = AST->decls[0]->factor;
+            parser->cleanErrors();
             return true;
         }
-        catch (exception e) {
+        catch (const exception& e) {
             cout << "Parse teminated due to errors.\n";
-            parser.parseDone();
+            parser->parseDone();
             return false;
         }
     }
@@ -1744,6 +1760,7 @@ public:
             throw NoSuchNameException(name);
         DataResult ds;
         ds.factorSym = declSym->factor;
+        ds.parentDataloader = this;
         return move(ds);
     }
     DataResult getData(int index) {
@@ -1752,6 +1769,7 @@ public:
             throw NoSuchNameException("<Unnamed>");
         DataResult ds;
         ds.factorSym = declSym->factor;
+        ds.parentDataloader = this;
         return move(ds);
     }
     DataResult operator[] (const char* name) {
@@ -1778,6 +1796,10 @@ private:
         return AST->decls[idx];
     }
 
+    virtual Parser* getParser() override {
+        return parser;
+    }
+
 public:
     static DataLoader create(const char* sample_) {
         DataLoader dl;
@@ -1788,6 +1810,17 @@ public:
 
 DataLoader operator "" _dl (const char* sample_, size_t) {
     return std::move(DataLoader::create(sample_));
+}
+
+void DataResult::reportRuntimeError(const char *msg, TokenPtr tok) {
+    Parser* p = getParser();
+    if (p)
+         p->diagError(string(msg), tok);
+    throw runtime_error(msg);
+}
+
+Parser* DataResult::getParser() {
+    return parentDataloader ? parentDataloader->parser : nullptr;
 }
 
 class SolutionTester {
@@ -1833,6 +1866,7 @@ public:
             return true;
         }
         catch (const exception& e) {
+            loader.parser->reportError(cout);
             cout << "Error while loading test case: " << e.what() << endl;
             return false;
         }
@@ -1983,12 +2017,13 @@ public:
                     typename function_helper<FuncTy>::return_type>;
         using function_return_type_opt = std::optional<function_return_type>;
 
-        SolutionTester::setCheckFn([&](DataLoader loader) -> bool {
+        SolutionTester::setCheckFn([&](DataLoader& loader) -> bool {
             try {
                 initialize_tuple_with_another<max_index_of_indexes>(params, forward_as_tuple(arg_indexes...), loader);
             }
             catch (const std::runtime_error& err) {
-                cout << " ** An error occurred while running this test case **\n  reason is: " << err.what();
+                loader.parser->reportError(cout);
+                cout << "fatal: An error occurred while parsing input of this test case.\n";
                 return false;
             }
             function_return_type_opt ret_value_opt = nullopt;
@@ -2065,8 +2100,7 @@ public:
             ST.addTestCase(std::forward<Args>(args)...);
         }
         catch (const std::runtime_error& err) {
-            cout << " ** error: Cannot add this test case due to an error. ** " << endl
-                 << err.what() << endl << "\n";
+            cout << " ** error: Cannot add this test case due to an error. ** " << endl;
         }
         return *this;
     }
